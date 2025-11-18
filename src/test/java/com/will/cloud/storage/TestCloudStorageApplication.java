@@ -1,6 +1,5 @@
-package com.will.cloud_storage;
+package com.will.cloud.storage;
 
-import com.will.cloud.storage.CloudStorageApplication;
 import org.springframework.boot.SpringApplication;
 
 public class TestCloudStorageApplication {

@@ -1,4 +1,4 @@
-package com.will.cloud_storage;
+package com.will.cloud.storage;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
