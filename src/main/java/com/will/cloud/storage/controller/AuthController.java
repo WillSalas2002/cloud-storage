@@ -4,6 +4,8 @@ import com.will.cloud.storage.dto.request.AuthRequest;
 import com.will.cloud.storage.dto.response.AuthResponse;
 import com.will.cloud.storage.service.AuthService;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
@@ -25,5 +27,11 @@ public class AuthController {
     public ResponseEntity<AuthResponse> singUp(@Validated @RequestBody AuthRequest request) {
         AuthResponse authResponse = authService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
+    }
+
+    @PostMapping("/sign-in")
+    public ResponseEntity<AuthResponse> signIn(@Validated @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
+        AuthResponse response = authService.signIn(request, httpRequest);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }

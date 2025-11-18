@@ -1,0 +1,41 @@
+package com.will.cloud.storage.exception;
+
+import com.will.cloud.storage.dto.ApiErrorDto;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorDto> handleException(DataIntegrityViolationException e, HttpServletRequest request) {
+        HttpStatus httpStatus = HttpStatus.CONFLICT;
+        ApiErrorDto errorDto = buildApiErrorDto("Data Conflict Detected", e.getMessage(), request, httpStatus);
+        return logAndRespond(httpStatus, errorDto);
+    }
+
+    private static ApiErrorDto buildApiErrorDto(String title, String errorDetail, HttpServletRequest request, HttpStatus status) {
+        return ApiErrorDto.builder()
+                .title(title)
+                .detail(errorDetail)
+                .status(status.value())
+                .uri(request.getRequestURI())
+                .build();
+    }
+
+    private ResponseEntity<ApiErrorDto> logAndRespond(HttpStatus status, ApiErrorDto apiError) {
+        log.error("{}\n{}", apiError.title(), apiError);
+        return new ResponseEntity<>(apiError, status);
+    }
+}

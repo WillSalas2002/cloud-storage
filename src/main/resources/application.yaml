@@ -10,11 +10,16 @@ spring:
     url: jdbc:postgresql://localhost:5555/cloud-storage
     username: postgres
     password: postgres
+
   jpa:
-    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
     hibernate:
       ddl-auto: none
-      show-sql: true
+    open-in-view: false
+
   hikari:
     minimum-idle: 3
     maximum-pool-size: 20
