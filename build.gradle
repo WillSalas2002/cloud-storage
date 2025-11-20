@@ -49,6 +49,10 @@ dependencies {
 	runtimeOnly 'org.postgresql:postgresql'
 	implementation 'org.liquibase:liquibase-core'
 
+	// minio
+	implementation 'io.minio:minio:8.6.0'
+
+	// docker helper
 	implementation 'org.springframework.boot:spring-boot-docker-compose'
 
 	// lombok
