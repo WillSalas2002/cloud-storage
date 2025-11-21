@@ -1,6 +1,5 @@
 package com.will.cloud.storage.controller;
 
-
 import com.will.cloud.storage.dto.response.UserProfileDto;
 
 import lombok.RequiredArgsConstructor;
@@ -20,5 +19,4 @@ public class UserController {
     public UserProfileDto getProfile(Principal principal) {
         return new UserProfileDto(principal.getName());
     }
-
 }

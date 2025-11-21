@@ -6,9 +6,8 @@ import com.will.cloud.storage.mapper.AuthMapper;
 import com.will.cloud.storage.model.User;
 import com.will.cloud.storage.repository.UserRepository;
 import com.will.cloud.storage.service.AuthService;
-
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
+import com.will.cloud.storage.service.MinioUtils;
+import com.will.cloud.storage.util.AppConstants;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -25,8 +24,6 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.ByteArrayInputStream;
-
 @Slf4j
 @Service
 @Transactional
@@ -34,7 +31,7 @@ import java.io.ByteArrayInputStream;
 public class AuthServiceImpl implements AuthService {
 
     private final AuthMapper authMapper;
-    private final MinioClient minioClient;
+    private final MinioUtils minioUtils;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -51,21 +48,13 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void createMinioFolderForUser(User user) {
-        String folderName = String.format("user-%d-files/", user.getId());
-        try {
-            log.info("Creating personal folder [{}] for user [{}]", folderName, user.getUsername());
-            minioClient.putObject(
-                    PutObjectArgs.builder().bucket("user-files").object(folderName).stream(
-                                    new ByteArrayInputStream(new byte[] {}), 0, -1)
-                            .build());
-            log.info(
-                    "Successfully create personal folder [{}] for user [{}]",
-                    folderName,
-                    user.getUsername());
-        } catch (Exception e) {
-            log.warn("Error when trying to create a folder for user: {}", user.getUsername());
-            log.error(e.getMessage());
-        }
+        String folderName = String.format(AppConstants.PERSONAL_FOLDER_NAME_TEMPLATE, user.getId());
+        log.info("Creating personal folder [{}] for user [{}]", folderName, user.getUsername());
+        minioUtils.createDir(AppConstants.BUCKET_NAME, folderName);
+        log.info(
+                "Successfully created personal folder [{}] for user [{}]",
+                folderName,
+                user.getUsername());
     }
 
     @Override

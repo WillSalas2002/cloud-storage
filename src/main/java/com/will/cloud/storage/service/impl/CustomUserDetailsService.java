@@ -1,6 +1,5 @@
 package com.will.cloud.storage.service.impl;
 
-import com.will.cloud.storage.model.User;
 import com.will.cloud.storage.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -18,19 +17,8 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user =
-                userRepository
-                        .findByUsername(username)
-                        .orElseThrow(
-                                () -> new UsernameNotFoundException("User not found: " + username));
-
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUsername())
-                .password(user.getPassword())
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(false)
-                .build();
+        return userRepository
+                .findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
 }

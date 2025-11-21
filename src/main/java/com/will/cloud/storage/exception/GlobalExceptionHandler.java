@@ -19,13 +19,26 @@ public class GlobalExceptionHandler {
 
     @ResponseStatus(HttpStatus.CONFLICT)
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiErrorDto> handleException(DataIntegrityViolationException e, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorDto> handleException(
+            DataIntegrityViolationException e, HttpServletRequest request) {
         HttpStatus httpStatus = HttpStatus.CONFLICT;
-        ApiErrorDto errorDto = buildApiErrorDto("Data Conflict Detected", e.getMessage(), request, httpStatus);
+        ApiErrorDto errorDto =
+                buildApiErrorDto("Data Conflict Detected", e.getMessage(), request, httpStatus);
         return logAndRespond(httpStatus, errorDto);
     }
 
-    private static ApiErrorDto buildApiErrorDto(String title, String errorDetail, HttpServletRequest request, HttpStatus status) {
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiErrorDto> handleNotFoundException(
+            ResourceNotFoundException e, HttpServletRequest request) {
+        HttpStatus httpStatus = HttpStatus.NOT_FOUND;
+        ApiErrorDto errorDto =
+                buildApiErrorDto("Resource not found.", e.getMessage(), request, httpStatus);
+        return logAndRespond(httpStatus, errorDto);
+    }
+
+    private static ApiErrorDto buildApiErrorDto(
+            String title, String errorDetail, HttpServletRequest request, HttpStatus status) {
         return ApiErrorDto.builder()
                 .title(title)
                 .detail(errorDetail)
