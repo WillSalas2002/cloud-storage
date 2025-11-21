@@ -36,7 +36,15 @@ spring:
 
   docker:
     compose:
+      enabled: true
+      file: docker-compose.yaml
       lifecycle-management: start_only
+
+minio:
+  url: http://localhost:9000
+  username: user
+  password: password
+  bucket: "user-files"
 
 logging:
   level:

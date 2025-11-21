@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
+
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/auth")
@@ -29,15 +33,15 @@ public class AuthController {
 
     @PostMapping("/sign-up")
     public ResponseEntity<AuthResponse> singUp(@Validated @RequestBody AuthRequest request) {
-        AuthResponse authResponse = authService.signUp(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
+        log.info("User {} is trying to sing up.", request.username());
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.signUp(request));
     }
 
     @PostMapping("/sign-in")
     public ResponseEntity<AuthResponse> signIn(
             @Validated @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
-        AuthResponse response = authService.signIn(request, httpRequest);
-        return ResponseEntity.status(HttpStatus.OK).body(response);
+        log.info("User {} is trying to sing in.", request.username());
+        return ResponseEntity.status(HttpStatus.OK).body(authService.signIn(request, httpRequest));
     }
 
     @PostMapping("/sign-out")
@@ -45,7 +49,13 @@ public class AuthController {
             Authentication authentication,
             HttpServletRequest request,
             HttpServletResponse response) {
+        log.info(
+                "User {} is trying to log out.",
+                ((Principal) authentication.getPrincipal()).getName());
         this.logoutHandler.logout(request, response, authentication);
+        log.info(
+                "User {} successfully logged out.",
+                ((Principal) authentication.getPrincipal()).getName());
         return ResponseEntity.noContent().build();
     }
 }
