@@ -1,5 +1,7 @@
 package com.will.cloud.storage.controller;
 
+import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
+
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
 import com.will.cloud.storage.model.User;
 import com.will.cloud.storage.service.MinioService;
@@ -7,8 +9,9 @@ import com.will.cloud.storage.service.MinioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.data.repository.query.Param;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -36,20 +40,23 @@ public class MinioResourceController {
     }
 
     @DeleteMapping
-    public ResponseEntity<Void> deleteResource(@Param("path") String path) {
-        minioService.deleteResource(path);
+    public ResponseEntity<Void> deleteResource(
+            @RequestParam("path") String path, @AuthenticationPrincipal User user) {
+        MDC.put("username", user.getUsername());
+        log.info("User [{}] is trying to delete resource [{}]", MDC.get(MDC_USERNAME_KEY), path);
+        minioService.deleteResource(user, path);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/download")
-    public ResponseEntity downloadResource(@Param("path") String path) {
+    public ResponseEntity downloadResource(@RequestParam("path") String path) {
         // response should be in application/octet-stream format
         return null;
     }
 
     @GetMapping("/move")
     public ResponseEntity<MinioResourceResponseDto> moveResource(
-            @RequestParam("from") String from, @Param("to") String to) {
+            @RequestParam("from") String from, @RequestParam("to") String to) {
         return ResponseEntity.ok().body(minioService.moveResource(from, to));
     }
 
@@ -59,9 +66,9 @@ public class MinioResourceController {
         return ResponseEntity.ok().body(minioService.search(query));
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<MinioResourceResponseDto>> uploadResource(
-            @RequestParam("query") String query) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(minioService.upload(query));
+            @RequestParam("path") String path, @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(minioService.upload(path, file));
     }
 }
