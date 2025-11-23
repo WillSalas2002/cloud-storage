@@ -30,15 +30,15 @@ public class MinioServiceImpl implements MinioService {
     public MinioResourceResponseDto getResource(User user, String path) {
         log.info("User: [{}], remaking path", user.getUsername());
         boolean isFolder = path.endsWith("/");
-        path = remakePath(path, user.getId(), isFolder);
+        String actualPath = remakePath(path, user.getId(), isFolder);
 
         log.info("User: [{}], checking if file exists under path [{}]", user.getUsername(), path);
-        if (!isResourceExist(path, isFolder)) {
+        if (!isResourceExist(actualPath, isFolder)) {
             throw new ResourceNotFoundException(
-                    path, String.format("Resource [{%s}] cannot be found", path));
+                    path, String.format("Resource [%s] cannot be found", path));
         }
 
-        Item item = minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, path);
+        Item item = minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, actualPath);
         log.info("User: [{}], found and returning requested file.", user.getUsername());
         return itemMapper.mapToMinioResourceResponseDto(item);
     }

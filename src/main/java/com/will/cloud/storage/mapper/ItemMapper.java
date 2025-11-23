@@ -13,21 +13,20 @@ import org.mapstruct.Named;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface ItemMapper {
 
-    @Mapping(target = "path", expression = "java(identifyPath(item.objectName()))")
+    @Mapping(target = "path", expression = "java(objectNameToPath(item.objectName()))")
     @Mapping(target = "name", expression = "java(objectNameToFileName(item.objectName()))")
     @Mapping(target = "size", expression = "java(item.size())")
     @Mapping(target = "resourceType", expression = "java(identifyResourceType(item.isDir()))")
     MinioResourceResponseDto mapToMinioResourceResponseDto(Item item);
 
-    @Named("identifyPath")
-    default String identifyPath(String objectName) {
-        return objectName.split("/", 2)[1];
+    @Named("objectNameToPath")
+    default String objectNameToPath(String objectName) {
+        return objectName.substring(objectName.indexOf("/") + 1, objectName.lastIndexOf("/") + 1);
     }
 
     @Named("objectNameToFileName")
     default String objectNameToFileName(String objectName) {
-        String[] nameArray = objectName.split("/");
-        return nameArray[nameArray.length - 1];
+        return objectName.substring(objectName.lastIndexOf("/") + 1);
     }
 
     @Named("identifyResourceType")

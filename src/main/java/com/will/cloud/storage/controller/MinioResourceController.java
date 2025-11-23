@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,7 +30,7 @@ public class MinioResourceController {
 
     @GetMapping
     public ResponseEntity<MinioResourceResponseDto> getResource(
-            @Param("path") String path, @AuthenticationPrincipal User user) {
+            @RequestParam("path") String path, @AuthenticationPrincipal User user) {
         log.info("User [{}] is trying to get resource [{}]", user.getUsername(), path);
         return ResponseEntity.ok().body(minioService.getResource(user, path));
     }
@@ -48,19 +49,19 @@ public class MinioResourceController {
 
     @GetMapping("/move")
     public ResponseEntity<MinioResourceResponseDto> moveResource(
-            @Param("from") String from, @Param("to") String to) {
+            @RequestParam("from") String from, @Param("to") String to) {
         return ResponseEntity.ok().body(minioService.moveResource(from, to));
     }
 
     @GetMapping("/search") // url encoded
     public ResponseEntity<List<MinioResourceResponseDto>> searchResource(
-            @Param("query") String query) {
+            @RequestParam("query") String query) {
         return ResponseEntity.ok().body(minioService.search(query));
     }
 
     @PostMapping
     public ResponseEntity<List<MinioResourceResponseDto>> uploadResource(
-            @Param("query") String query) {
+            @RequestParam("query") String query) {
         return ResponseEntity.status(HttpStatus.CREATED).body(minioService.upload(query));
     }
 }
