@@ -13,6 +13,7 @@ import com.will.cloud.storage.service.MinioUtils;
 import com.will.cloud.storage.util.AppConstants;
 
 import io.minio.GenericResponse;
+import io.minio.ObjectWriteResponse;
 import io.minio.Result;
 import io.minio.messages.Item;
 
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.slf4j.MDC;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -84,7 +86,19 @@ public class MinioServiceImpl implements MinioService {
     }
 
     @Override
-    public MinioResourceResponseDto moveResource(String from, String to) {
+    public MinioResourceResponseDto moveResource(String from, String to, User user) {
+        String actualFromPath = remakePath(from, user);
+        checkResourceExistsOrThrowException(actualFromPath, isFolder(from));
+        String actualToPath = remakePath(to, user);
+
+        ObjectWriteResponse objectWriteResponse =
+                minioUtils.copyFile(
+                        AppConstants.BUCKET_NAME,
+                        actualFromPath,
+                        AppConstants.BUCKET_NAME,
+                        actualToPath);
+
+        deleteResource(user, from);
         return null;
     }
 
@@ -117,7 +131,7 @@ public class MinioServiceImpl implements MinioService {
                 "User: [{}], getting file's [{}] inputStream and writing it to response",
                 MDC.get(MDC_USERNAME_KEY),
                 objectName);
-        
+
         try (InputStream is = minioUtils.getObject(AppConstants.BUCKET_NAME, objectName);
                 OutputStream os = response.getOutputStream()) {
             is.transferTo(os);
@@ -136,7 +150,7 @@ public class MinioServiceImpl implements MinioService {
                 "User: [{}], getting folder's [{}] and its contents inputStream and writing it to response",
                 MDC.get(MDC_USERNAME_KEY),
                 folderPath);
-        
+
         try (ZipOutputStream zipOut = new ZipOutputStream(response.getOutputStream())) {
             Iterable<Result<Item>> results =
                     minioUtils.listObjects(AppConstants.BUCKET_NAME, folderPath, true);
@@ -174,8 +188,9 @@ public class MinioServiceImpl implements MinioService {
                 URLEncoder.encode(fileNameToDownload, StandardCharsets.UTF_8).replace("+", "%20");
 
         response.setHeader(
-                "Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"");
-        response.setHeader("Content-Type", "application/octet-stream");
+                HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + encodedFileName + "\"");
+        response.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
     }
 
     private void restoreFolder(String folderToBeRestored, User user) {

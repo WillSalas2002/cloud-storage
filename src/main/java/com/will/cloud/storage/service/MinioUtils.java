@@ -19,12 +19,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
-
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -146,26 +142,6 @@ public class MinioUtils {
     }
 
     /**
-     * Breakpoint download
-     *
-     * @param bucketName
-     * @param objectName
-     * @param offset
-     * @param length
-     * @return
-     */
-    @SneakyThrows(Exception.class)
-    public InputStream getObject(String bucketName, String objectName, long offset, long length) {
-        return minioClient.getObject(
-                GetObjectArgs.builder()
-                        .bucket(bucketName)
-                        .object(objectName)
-                        .offset(offset)
-                        .length(length)
-                        .build());
-    }
-
-    /**
      * Get the list of files under the path
      *
      * @param bucketName
@@ -180,20 +156,6 @@ public class MinioUtils {
                         .prefix(prefix)
                         .recursive(recursive)
                         .build());
-    }
-
-    public Mono<InputStreamResource> download(String bucketName, String name) {
-        return Mono.fromCallable(
-                        () -> {
-                            InputStream response =
-                                    minioClient.getObject(
-                                            GetObjectArgs.builder()
-                                                    .bucket(bucketName)
-                                                    .object(name)
-                                                    .build());
-                            return new InputStreamResource(response);
-                        })
-                .subscribeOn(Schedulers.boundedElastic());
     }
 
     /**

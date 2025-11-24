@@ -18,7 +18,7 @@ public interface MinioService {
 
     void downloadResource(String path, User user, HttpServletResponse response);
 
-    MinioResourceResponseDto moveResource(String from, String to);
+    MinioResourceResponseDto moveResource(String from, String to, User user);
 
     List<MinioResourceResponseDto> search(String query);
 

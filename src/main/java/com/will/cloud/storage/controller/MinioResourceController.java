@@ -52,16 +52,22 @@ public class MinioResourceController {
 
     @GetMapping("/download")
     public ResponseEntity<Void> downloadResource(
-            @RequestParam("path") String path, @AuthenticationPrincipal User user, HttpServletResponse response) {
+            @RequestParam("path") String path,
+            @AuthenticationPrincipal User user,
+            HttpServletResponse response) {
         MDC.put(MDC_USERNAME_KEY, user.getUsername());
+        log.info("User [{}] is trying to download resource [{}]", MDC.get(MDC_USERNAME_KEY), path);
         minioService.downloadResource(path, user, response);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/move")
     public ResponseEntity<MinioResourceResponseDto> moveResource(
-            @RequestParam("from") String from, @RequestParam("to") String to) {
-        return ResponseEntity.ok().body(minioService.moveResource(from, to));
+            @RequestParam("from") String from,
+            @RequestParam("to") String to,
+            @AuthenticationPrincipal User user) {
+        MDC.put(MDC_USERNAME_KEY, user.getUsername());
+        return ResponseEntity.ok().body(minioService.moveResource(from, to, user));
     }
 
     @GetMapping("/search") // url encoded
