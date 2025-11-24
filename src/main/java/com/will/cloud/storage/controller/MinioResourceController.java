@@ -6,6 +6,8 @@ import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
 import com.will.cloud.storage.model.User;
 import com.will.cloud.storage.service.MinioService;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,9 +51,11 @@ public class MinioResourceController {
     }
 
     @GetMapping("/download")
-    public ResponseEntity downloadResource(@RequestParam("path") String path) {
-        // response should be in application/octet-stream format
-        return null;
+    public ResponseEntity<Void> downloadResource(
+            @RequestParam("path") String path, @AuthenticationPrincipal User user, HttpServletResponse response) {
+        MDC.put(MDC_USERNAME_KEY, user.getUsername());
+        minioService.downloadResource(path, user, response);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/move")

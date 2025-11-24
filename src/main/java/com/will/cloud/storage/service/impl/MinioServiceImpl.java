@@ -1,6 +1,7 @@
 package com.will.cloud.storage.service.impl;
 
 import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
+import static com.will.cloud.storage.util.AppConstants.SIGN_SLASH;
 
 import com.will.cloud.storage.dto.response.MinioCreateDirectoryResponseDto;
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
@@ -15,6 +16,8 @@ import io.minio.GenericResponse;
 import io.minio.Result;
 import io.minio.messages.Item;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,7 +26,13 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Slf4j
 @Service
@@ -58,7 +67,20 @@ public class MinioServiceImpl implements MinioService {
                 MDC.get(MDC_USERNAME_KEY),
                 actualPath);
 
-        restoreFolder(path.substring(0, path.lastIndexOf("/") + 1), user);
+        restoreFolder(path.substring(0, path.lastIndexOf(SIGN_SLASH) + 1), user);
+    }
+
+    @Override
+    public void downloadResource(String path, User user, HttpServletResponse response) {
+        String actualPath = remakePath(path, user);
+        boolean isFolder = isFolder(path);
+        checkResourceExistsOrThrowException(actualPath, isFolder);
+
+        if (isFolder) {
+            downloadFolderAsZip(actualPath, response);
+        } else {
+            downloadSingleFile(actualPath, response);
+        }
     }
 
     @Override
@@ -87,6 +109,73 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public MinioCreateDirectoryResponseDto createDirectory(String path) {
         return null;
+    }
+
+    private void downloadSingleFile(String objectName, HttpServletResponse response) {
+        setHeaders(objectName, response);
+        log.info(
+                "User: [{}], getting file's [{}] inputStream and writing it to response",
+                MDC.get(MDC_USERNAME_KEY),
+                objectName);
+        
+        try (InputStream is = minioUtils.getObject(AppConstants.BUCKET_NAME, objectName);
+                OutputStream os = response.getOutputStream()) {
+            is.transferTo(os);
+            os.flush();
+        } catch (Exception e) {
+            log.error(
+                    "User: [{}], error occurred when downloading resource [{}]",
+                    MDC.get(MDC_USERNAME_KEY),
+                    objectName);
+        }
+    }
+
+    private void downloadFolderAsZip(String folderPath, HttpServletResponse response) {
+        setHeaders(folderPath, response);
+        log.info(
+                "User: [{}], getting folder's [{}] and its contents inputStream and writing it to response",
+                MDC.get(MDC_USERNAME_KEY),
+                folderPath);
+        
+        try (ZipOutputStream zipOut = new ZipOutputStream(response.getOutputStream())) {
+            Iterable<Result<Item>> results =
+                    minioUtils.listObjects(AppConstants.BUCKET_NAME, folderPath, true);
+
+            for (Result<Item> r : results) {
+                Item item = r.get();
+                if (item.isDir()) continue;
+
+                try (InputStream is =
+                        minioUtils.getObject(AppConstants.BUCKET_NAME, item.objectName())) {
+                    String entryName = item.objectName().substring(folderPath.length());
+                    zipOut.putNextEntry(new ZipEntry(entryName));
+
+                    is.transferTo(zipOut);
+                    zipOut.closeEntry();
+                } catch (Exception e) {
+                    log.error(
+                            "User: [{}], error occurred when transfer resource [{}] to zip",
+                            MDC.get(MDC_USERNAME_KEY),
+                            item.objectName());
+                }
+            }
+            zipOut.finish();
+        } catch (Exception e) {
+            log.error(
+                    "User: [{}], error occurred when getting folder [{}] contents recursively",
+                    MDC.get(MDC_USERNAME_KEY),
+                    folderPath);
+        }
+    }
+
+    private void setHeaders(String objectName, HttpServletResponse response) {
+        String fileNameToDownload = objectName.substring(objectName.lastIndexOf(SIGN_SLASH) + 1);
+        String encodedFileName =
+                URLEncoder.encode(fileNameToDownload, StandardCharsets.UTF_8).replace("+", "%20");
+
+        response.setHeader(
+                "Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"");
+        response.setHeader("Content-Type", "application/octet-stream");
     }
 
     private void restoreFolder(String folderToBeRestored, User user) {
@@ -143,6 +232,6 @@ public class MinioServiceImpl implements MinioService {
     }
 
     private boolean isFolder(String path) {
-        return path.endsWith("/");
+        return path.endsWith(SIGN_SLASH);
     }
 }

@@ -10,4 +10,6 @@ public final class AppConstants {
 
     public static final String MDC_USERNAME_KEY = "username";
 
+    public static final String SIGN_SLASH = "/";
+
 }
