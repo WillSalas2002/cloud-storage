@@ -37,16 +37,19 @@ public class MinioResourceController {
     @GetMapping
     public ResponseEntity<MinioResourceResponseDto> getResource(
             @RequestParam("path") String path, @AuthenticationPrincipal User user) {
-        log.info("User [{}] is trying to get resource [{}]", user.getUsername(), path);
+        MDC.put(MDC_USERNAME_KEY, user.getUsername());
+        log.info("User [{}] is trying to get resource [{}]", MDC.get(MDC_USERNAME_KEY), path);
+
         return ResponseEntity.ok().body(minioService.getResource(user, path));
     }
 
     @DeleteMapping
     public ResponseEntity<Void> deleteResource(
             @RequestParam("path") String path, @AuthenticationPrincipal User user) {
-        MDC.put("username", user.getUsername());
+        MDC.put(MDC_USERNAME_KEY, user.getUsername());
         log.info("User [{}] is trying to delete resource [{}]", MDC.get(MDC_USERNAME_KEY), path);
-        minioService.deleteResource(user, path);
+
+        minioService.deleteResource(user, path, true);
         return ResponseEntity.noContent().build();
     }
 
@@ -57,6 +60,7 @@ public class MinioResourceController {
             HttpServletResponse response) {
         MDC.put(MDC_USERNAME_KEY, user.getUsername());
         log.info("User [{}] is trying to download resource [{}]", MDC.get(MDC_USERNAME_KEY), path);
+
         minioService.downloadResource(path, user, response);
         return ResponseEntity.ok().build();
     }
@@ -67,6 +71,7 @@ public class MinioResourceController {
             @RequestParam("to") String to,
             @AuthenticationPrincipal User user) {
         MDC.put(MDC_USERNAME_KEY, user.getUsername());
+
         return ResponseEntity.ok().body(minioService.moveResource(from, to, user));
     }
 

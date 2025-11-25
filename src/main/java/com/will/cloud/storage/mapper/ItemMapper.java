@@ -1,5 +1,7 @@
 package com.will.cloud.storage.mapper;
 
+import static com.will.cloud.storage.util.AppConstants.SIGN_SLASH;
+
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
 import com.will.cloud.storage.dto.response.ResourceType;
 
@@ -13,24 +15,41 @@ import org.mapstruct.Named;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface ItemMapper {
 
-    @Mapping(target = "path", expression = "java(objectNameToPath(item.objectName()))")
-    @Mapping(target = "name", expression = "java(objectNameToFileName(item.objectName()))")
+    @Mapping(
+            target = "path",
+            expression = "java(objectNameToPath(item.objectName(), item.isDir()))")
+    @Mapping(
+            target = "name",
+            expression = "java(objectNameToFileName(item.objectName(), item.isDir()))")
     @Mapping(target = "size", expression = "java(item.size())")
     @Mapping(target = "resourceType", expression = "java(identifyResourceType(item.isDir()))")
     MinioResourceResponseDto mapToMinioResourceResponseDto(Item item);
 
     @Named("objectNameToPath")
-    default String objectNameToPath(String objectName) {
-        return objectName.substring(objectName.indexOf("/") + 1, objectName.lastIndexOf("/") + 1);
+    default String objectNameToPath(String objectName, boolean isDir) {
+        if (!isDir) {
+            return objectName.substring(
+                    objectName.indexOf(SIGN_SLASH) + 1, objectName.lastIndexOf(SIGN_SLASH) + 1);
+        }
+        return objectName.substring(
+                objectName.indexOf(SIGN_SLASH) + 1, getPreLastIndexOfSlash(objectName) + 1);
     }
 
     @Named("objectNameToFileName")
-    default String objectNameToFileName(String objectName) {
-        return objectName.substring(objectName.lastIndexOf("/") + 1);
+    default String objectNameToFileName(String objectName, boolean isDir) {
+        if (!isDir) {
+            return objectName.substring(objectName.lastIndexOf(SIGN_SLASH) + 1);
+        }
+        return objectName.substring(
+                getPreLastIndexOfSlash(objectName) + 1, objectName.lastIndexOf(SIGN_SLASH));
     }
 
     @Named("identifyResourceType")
     default ResourceType identifyResourceType(boolean isDir) {
         return isDir ? ResourceType.DIRECTORY : ResourceType.FILE;
+    }
+
+    private static int getPreLastIndexOfSlash(String objectName) {
+        return objectName.substring(0, objectName.lastIndexOf(SIGN_SLASH)).lastIndexOf(SIGN_SLASH);
     }
 }

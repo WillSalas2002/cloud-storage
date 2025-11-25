@@ -14,7 +14,7 @@ public interface MinioService {
 
     MinioResourceResponseDto getResource(User user, String path);
 
-    void deleteResource(User user, String path);
+    void deleteResource(User user, String path, boolean isRestoreFolder);
 
     void downloadResource(String path, User user, HttpServletResponse response);
 
