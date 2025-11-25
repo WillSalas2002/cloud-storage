@@ -71,6 +71,11 @@ public class MinioResourceController {
             @RequestParam("to") String to,
             @AuthenticationPrincipal User user) {
         MDC.put(MDC_USERNAME_KEY, user.getUsername());
+        log.info(
+                "User [{}] is trying to move resource from [{}] to [{}]",
+                MDC.get(MDC_USERNAME_KEY),
+                from,
+                to);
 
         return ResponseEntity.ok().body(minioService.moveResource(from, to, user));
     }

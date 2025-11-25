@@ -13,7 +13,6 @@ import com.will.cloud.storage.service.MinioUtils;
 import com.will.cloud.storage.util.AppConstants;
 
 import io.minio.GenericResponse;
-import io.minio.ObjectWriteResponse;
 import io.minio.Result;
 import io.minio.messages.Item;
 
@@ -65,7 +64,7 @@ public class MinioServiceImpl implements MinioService {
             minioUtils.removeFile(AppConstants.BUCKET_NAME, actualPath);
         }
         log.info(
-                "User: [{}], found and removed requested [{}] file/folder.",
+                "User: [{}], found and removed resource [{}] file/folder.",
                 MDC.get(MDC_USERNAME_KEY),
                 actualPath);
 
@@ -93,42 +92,11 @@ public class MinioServiceImpl implements MinioService {
         checkResourceExistsOrThrowException(actualFromPath, isFolder(from));
         String actualToPath = remakePath(to, user);
 
-        moveFolder(actualFromPath, actualToPath, isFolder(from));
+        moveResource(actualFromPath, actualToPath, isFolder(from));
 
         deleteResource(user, from, false);
         return itemMapper.mapToMinioResourceResponseDto(
                 minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, actualToPath));
-    }
-
-    private void moveFolder(String actualFromPath, String actualToPath, boolean isFolder) {
-        Iterable<Result<Item>> results =
-                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualFromPath, true);
-        for (Result<Item> result : results) {
-            try {
-                Item item = result.get();
-                String from = item.objectName();
-                String to;
-
-                if (!isFolder) {
-                    to =
-                            actualToPath.concat(
-                                    actualFromPath.substring(
-                                            actualFromPath.lastIndexOf(SIGN_SLASH)));
-                    minioUtils.copyFile(
-                            AppConstants.BUCKET_NAME, from, AppConstants.BUCKET_NAME, to);
-                    break;
-                }
-
-                to = actualToPath.concat(from.substring(actualFromPath.length()));
-                minioUtils.copyFile(AppConstants.BUCKET_NAME, from, AppConstants.BUCKET_NAME, to);
-            } catch (Exception e) {
-                log.error(
-                        "User: [{}], error occurred when trying to move file [{}] to [{}]",
-                        MDC.get(MDC_USERNAME_KEY),
-                        actualFromPath,
-                        actualToPath);
-            }
-        }
     }
 
     @Override
@@ -152,6 +120,47 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public MinioCreateDirectoryResponseDto createDirectory(String path) {
         return null;
+    }
+
+    private void moveResource(String actualFromPath, String actualToPath, boolean isFolder) {
+        Iterable<Result<Item>> results =
+                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualFromPath, true);
+        for (Result<Item> result : results) {
+            try {
+                Item item = result.get();
+                String from = item.objectName();
+                String to;
+
+                if (!isFolder) {
+                    to =
+                            actualToPath.concat(
+                                    actualFromPath.substring(
+                                            actualFromPath.lastIndexOf(SIGN_SLASH)));
+                    log.info(
+                            "User [{}], moving file from [{}] to [{}]",
+                            MDC.get(MDC_USERNAME_KEY),
+                            from,
+                            to);
+                    minioUtils.copyFile(
+                            AppConstants.BUCKET_NAME, from, AppConstants.BUCKET_NAME, to);
+                    break;
+                }
+
+                to = actualToPath.concat(from.substring(actualFromPath.length()));
+                log.info(
+                        "User [{}], moving file from [{}] to [{}]",
+                        MDC.get(MDC_USERNAME_KEY),
+                        from,
+                        to);
+                minioUtils.copyFile(AppConstants.BUCKET_NAME, from, AppConstants.BUCKET_NAME, to);
+            } catch (Exception e) {
+                log.error(
+                        "User: [{}], error occurred when trying to move file [{}] to [{}]",
+                        MDC.get(MDC_USERNAME_KEY),
+                        actualFromPath,
+                        actualToPath);
+            }
+        }
     }
 
     private void downloadSingleFile(String objectName, HttpServletResponse response) {
