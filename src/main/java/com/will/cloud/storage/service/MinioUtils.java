@@ -34,11 +34,6 @@ public class MinioUtils {
 
     private final MinioClient minioClient;
 
-    /**
-     * init Bucket when start SpringBoot container create bucket if the bucket is not exists
-     *
-     * @param bucketName
-     */
     @SneakyThrows(Exception.class)
     public void createBucket(String bucketName) {
         if (!bucketExists(bucketName)) {
@@ -46,24 +41,11 @@ public class MinioUtils {
         }
     }
 
-    /**
-     * verify Bucket is exist?，true：false
-     *
-     * @param bucketName
-     * @return
-     */
     @SneakyThrows(Exception.class)
-    public boolean bucketExists(String bucketName) {
+    private boolean bucketExists(String bucketName) {
         return minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
     }
 
-    /**
-     * check file is exist
-     *
-     * @param bucketName
-     * @param objectName
-     * @return
-     */
     public boolean isObjectExist(String bucketName, String objectName) {
         boolean exist = true;
         try {
@@ -76,13 +58,6 @@ public class MinioUtils {
         return exist;
     }
 
-    /**
-     * check directory exist?
-     *
-     * @param bucketName
-     * @param objectName
-     * @return
-     */
     public boolean isFolderExist(String bucketName, String objectName) {
         boolean exist = false;
         try {
@@ -106,13 +81,6 @@ public class MinioUtils {
         return exist;
     }
 
-    /**
-     * Query files based on file prefix
-     *
-     * @param bucketName
-     * @param prefix
-     * @return MinioItem
-     */
     @SneakyThrows(Exception.class)
     public Item getObjectByPath(String bucketName, String prefix) {
         List<Item> list = new ArrayList<>();
@@ -128,27 +96,12 @@ public class MinioUtils {
         return list.getFirst();
     }
 
-    /**
-     * get file InputStream
-     *
-     * @param bucketName
-     * @param objectName
-     * @return
-     */
     @SneakyThrows(Exception.class)
     public InputStream getObject(String bucketName, String objectName) {
         return minioClient.getObject(
                 GetObjectArgs.builder().bucket(bucketName).object(objectName).build());
     }
 
-    /**
-     * Get the list of files under the path
-     *
-     * @param bucketName
-     * @param prefix
-     * @param recursive
-     * @return
-     */
     public Iterable<Result<Item>> listObjects(String bucketName, String prefix, boolean recursive) {
         return minioClient.listObjects(
                 ListObjectsArgs.builder()
@@ -158,15 +111,6 @@ public class MinioUtils {
                         .build());
     }
 
-    /**
-     * use MultipartFile to upload files
-     *
-     * @param bucketName
-     * @param file
-     * @param objectName
-     * @param contentType
-     * @return
-     */
     @SneakyThrows(Exception.class)
     public ObjectWriteResponse uploadFile(
             String bucketName, MultipartFile file, String objectName, String contentType) {
@@ -212,14 +156,6 @@ public class MinioUtils {
     //        return stream;
     //    }
 
-    /**
-     * upload local files
-     *
-     * @param bucketName
-     * @param objectName
-     * @param fileName
-     * @return
-     */
     @SneakyThrows(Exception.class)
     public ObjectWriteResponse uploadFile(String bucketName, String objectName, String fileName) {
         return minioClient.uploadObject(
@@ -230,14 +166,6 @@ public class MinioUtils {
                         .build());
     }
 
-    /**
-     * upload files based on stream
-     *
-     * @param bucketName
-     * @param objectName
-     * @param inputStream
-     * @return
-     */
     @SneakyThrows(Exception.class)
     public ObjectWriteResponse uploadFile(
             String bucketName, String objectName, InputStream inputStream) {
@@ -247,13 +175,6 @@ public class MinioUtils {
                         .build());
     }
 
-    /**
-     * create file or directory
-     *
-     * @param bucketName
-     * @param objectName
-     * @return
-     */
     @SneakyThrows(Exception.class)
     public ObjectWriteResponse createDir(String bucketName, String objectName) {
         return minioClient.putObject(
@@ -262,13 +183,6 @@ public class MinioUtils {
                         .build());
     }
 
-    /**
-     * get file info
-     *
-     * @param bucketName
-     * @param objectName
-     * @return
-     */
     @SneakyThrows(Exception.class)
     public String getFileStatusInfo(String bucketName, String objectName) {
         return minioClient
@@ -276,14 +190,6 @@ public class MinioUtils {
                 .toString();
     }
 
-    /**
-     * copy file
-     *
-     * @param bucketName
-     * @param objectName
-     * @param srcBucketName
-     * @param srcObjectName
-     */
     @SneakyThrows(Exception.class)
     public ObjectWriteResponse copyFile(
             String bucketName, String objectName, String srcBucketName, String srcObjectName) {
@@ -295,12 +201,6 @@ public class MinioUtils {
                         .build());
     }
 
-    /**
-     * delete file
-     *
-     * @param bucketName
-     * @param objectName
-     */
     @SneakyThrows(Exception.class)
     public void removeFile(String bucketName, String objectName) {
         minioClient.removeObject(
