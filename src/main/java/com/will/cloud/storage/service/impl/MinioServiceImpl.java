@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -100,8 +101,42 @@ public class MinioServiceImpl implements MinioService {
     }
 
     @Override
-    public List<MinioResourceResponseDto> search(String query) {
-        return List.of();
+    public List<MinioResourceResponseDto> search(String query, User user) {
+        List<MinioResourceResponseDto> responseList = new ArrayList<>();
+        Iterable<Result<Item>> results = minioUtils.listObjects(AppConstants.BUCKET_NAME, "", true);
+        String prefix = "";
+
+        for (Result<Item> result : results) {
+            try {
+                Item item = result.get();
+                String resourceName = item.objectName();
+                log.info(resourceName);
+                if (isResourceEligibleToBeAdded(query, resourceName, prefix)) {
+                    prefix = resourceName.substring(0, resourceName.lastIndexOf(SIGN_SLASH) + 1);
+                    if (isDirectory(query, resourceName)) {
+                        responseList.add(
+                                getResource(
+                                        user, prefix.substring(prefix.indexOf(SIGN_SLASH) + 1)));
+                    } else {
+                        responseList.add(itemMapper.mapToMinioResourceResponseDto(item));
+                    }
+                }
+            } catch (Exception e) {
+
+            }
+        }
+        return responseList;
+    }
+
+    private static boolean isDirectory(String query, String resourceName) {
+        return resourceName.startsWith(
+                SIGN_SLASH, resourceName.indexOf(query) + query.length());
+    }
+
+    private static boolean isResourceEligibleToBeAdded(
+            String query, String resourceName, String prefix) {
+        return resourceName.contains(query)
+                && resourceName.substring(prefix.length()).contains(query);
     }
 
     @Override

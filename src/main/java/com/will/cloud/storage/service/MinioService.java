@@ -20,7 +20,7 @@ public interface MinioService {
 
     MinioResourceResponseDto moveResource(String from, String to, User user);
 
-    List<MinioResourceResponseDto> search(String query);
+    List<MinioResourceResponseDto> search(String query, User user);
 
     List<MinioResourceResponseDto> upload(String query, MultipartFile file);
 

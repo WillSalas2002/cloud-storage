@@ -80,10 +80,10 @@ public class MinioResourceController {
         return ResponseEntity.ok().body(minioService.moveResource(from, to, user));
     }
 
-    @GetMapping("/search") // url encoded
+    @GetMapping(value = "/search")
     public ResponseEntity<List<MinioResourceResponseDto>> searchResource(
-            @RequestParam("query") String query) {
-        return ResponseEntity.ok().body(minioService.search(query));
+            @RequestParam("query") String query, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok().body(minioService.search(query, user));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

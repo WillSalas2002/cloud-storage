@@ -22,7 +22,7 @@ public interface ItemMapper {
             target = "name",
             expression = "java(objectNameToFileName(item.objectName(), item.isDir()))")
     @Mapping(target = "size", expression = "java(item.size())")
-    @Mapping(target = "resourceType", expression = "java(identifyResourceType(item.isDir()))")
+    @Mapping(target = "resourceType", expression = "java(identifyResourceType(item.objectName()))")
     MinioResourceResponseDto mapToMinioResourceResponseDto(Item item);
 
     @Named("objectNameToPath")
@@ -45,8 +45,8 @@ public interface ItemMapper {
     }
 
     @Named("identifyResourceType")
-    default ResourceType identifyResourceType(boolean isDir) {
-        return isDir ? ResourceType.DIRECTORY : ResourceType.FILE;
+    default ResourceType identifyResourceType(String objectName) {
+        return objectName.endsWith(SIGN_SLASH) ? ResourceType.DIRECTORY : ResourceType.FILE;
     }
 
     private static int getPreLastIndexOfSlash(String objectName) {
