@@ -3,7 +3,6 @@ package com.will.cloud.storage.service.impl;
 import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
 import static com.will.cloud.storage.util.AppConstants.SIGN_SLASH;
 
-import com.will.cloud.storage.dto.response.MinioCreateDirectoryResponseDto;
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
 import com.will.cloud.storage.exception.ResourceNotFoundException;
 import com.will.cloud.storage.mapper.ItemMapper;
@@ -129,8 +128,7 @@ public class MinioServiceImpl implements MinioService {
     }
 
     private static boolean isDirectory(String query, String resourceName) {
-        return resourceName.startsWith(
-                SIGN_SLASH, resourceName.indexOf(query) + query.length());
+        return resourceName.startsWith(SIGN_SLASH, resourceName.indexOf(query) + query.length());
     }
 
     private static boolean isResourceEligibleToBeAdded(
@@ -153,8 +151,13 @@ public class MinioServiceImpl implements MinioService {
     }
 
     @Override
-    public MinioCreateDirectoryResponseDto createDirectory(String path) {
-        return null;
+    public MinioResourceResponseDto createDirectory(User user, String path) {
+        String personalFolder =
+                String.format(AppConstants.PERSONAL_FOLDER_NAME_TEMPLATE, user.getId());
+        minioUtils.createDir(AppConstants.BUCKET_NAME, personalFolder.concat(path + SIGN_SLASH));
+        log.info(
+                "User: [{}], successfully created directory [{}]", MDC.get(MDC_USERNAME_KEY), path);
+        return getResource(user, path + SIGN_SLASH);
     }
 
     private void moveResource(String actualFromPath, String actualToPath, boolean isFolder) {

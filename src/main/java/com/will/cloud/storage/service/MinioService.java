@@ -1,6 +1,5 @@
 package com.will.cloud.storage.service;
 
-import com.will.cloud.storage.dto.response.MinioCreateDirectoryResponseDto;
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
 import com.will.cloud.storage.model.User;
 
@@ -24,5 +23,5 @@ public interface MinioService {
 
     List<MinioResourceResponseDto> upload(String query, MultipartFile file);
 
-    MinioCreateDirectoryResponseDto createDirectory(String path);
+    MinioResourceResponseDto createDirectory(User user, String path);
 }
