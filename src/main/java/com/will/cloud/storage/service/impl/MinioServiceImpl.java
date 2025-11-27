@@ -4,6 +4,7 @@ import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
 import static com.will.cloud.storage.util.AppConstants.SIGN_SLASH;
 
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
+import com.will.cloud.storage.exception.DirectoryAlreadyExistsException;
 import com.will.cloud.storage.exception.ResourceNotFoundException;
 import com.will.cloud.storage.mapper.ItemMapper;
 import com.will.cloud.storage.model.User;
@@ -152,12 +153,32 @@ public class MinioServiceImpl implements MinioService {
 
     @Override
     public MinioResourceResponseDto createDirectory(User user, String path) {
-        String personalFolder =
-                String.format(AppConstants.PERSONAL_FOLDER_NAME_TEMPLATE, user.getId());
-        minioUtils.createDir(AppConstants.BUCKET_NAME, personalFolder.concat(path + SIGN_SLASH));
+        String pathWithoutSlash =
+                path.endsWith(SIGN_SLASH) ? path.substring(0, path.length() - 1) : path;
+        String fullPath = remakePath(pathWithoutSlash, user);
+        String directoryName = fullPath.substring(fullPath.lastIndexOf(SIGN_SLASH));
+        String actualPath = fullPath.replace(directoryName, "");
+
+        checkResourceExistsOrThrowException(actualPath, true);
+        try {
+            checkResourceExistsOrThrowException(fullPath, true);
+            log.error(
+                    "User: [{}], directory [{}] already exist, throwing exception",
+                    MDC.get(MDC_USERNAME_KEY),
+                    path);
+            throw new DirectoryAlreadyExistsException(
+                    String.format(
+                            "Directory [%s] already exists under path [%s]",
+                            directoryName,
+                            actualPath.substring(actualPath.indexOf(SIGN_SLASH) + 1)));
+        } catch (ResourceNotFoundException e) {
+            // this path is aimed to be created, so it is okay for it to be absent
+        }
+
+        minioUtils.createDir(AppConstants.BUCKET_NAME, fullPath);
         log.info(
                 "User: [{}], successfully created directory [{}]", MDC.get(MDC_USERNAME_KEY), path);
-        return getResource(user, path + SIGN_SLASH);
+        return getResource(user, pathWithoutSlash + SIGN_SLASH);
     }
 
     private void moveResource(String actualFromPath, String actualToPath, boolean isFolder) {

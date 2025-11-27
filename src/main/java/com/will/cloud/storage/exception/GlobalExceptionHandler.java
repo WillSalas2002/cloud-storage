@@ -48,6 +48,16 @@ public class GlobalExceptionHandler {
         return logAndRespond(httpStatus, errorDto);
     }
 
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(DirectoryAlreadyExistsException.class)
+    public ResponseEntity<ApiErrorDto> handleDirectoryAlreadyExistsException(
+            DirectoryAlreadyExistsException e, HttpServletRequest request) {
+        HttpStatus httpStatus = HttpStatus.CONFLICT;
+        ApiErrorDto errorDto =
+                buildApiErrorDto("Already exist.", e.getMessage(), request, httpStatus);
+        return logAndRespond(httpStatus, errorDto);
+    }
+
     private static ApiErrorDto buildApiErrorDto(
             String title, String errorDetail, HttpServletRequest request, HttpStatus status) {
         return ApiErrorDto.builder()

@@ -83,6 +83,8 @@ public class MinioResourceController {
     @GetMapping(value = "/search")
     public ResponseEntity<List<MinioResourceResponseDto>> searchResource(
             @RequestParam("query") String query, @AuthenticationPrincipal User user) {
+        MDC.put(MDC_USERNAME_KEY, user.getUsername());
+        log.info("User [{}] is searching for resource [{}]", MDC.get(MDC_USERNAME_KEY), query);
         return ResponseEntity.ok().body(minioService.search(query, user));
     }
 
