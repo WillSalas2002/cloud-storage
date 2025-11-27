@@ -27,12 +27,14 @@ public interface ItemMapper {
 
     @Named("objectNameToPath")
     default String objectNameToPath(String objectName, boolean isDir) {
-        if (!isDir) {
-            return objectName.substring(
-                    objectName.indexOf(SIGN_SLASH) + 1, objectName.lastIndexOf(SIGN_SLASH) + 1);
+        if (objectName.split(SIGN_SLASH).length == 2) {
+            return SIGN_SLASH;
         }
-        return objectName.substring(
-                objectName.indexOf(SIGN_SLASH) + 1, getPreLastIndexOfSlash(objectName) + 1);
+        return isDir
+                ? objectName.substring(
+                        objectName.indexOf(SIGN_SLASH) + 1, getPreLastIndexOfSlash(objectName) + 1)
+                : objectName.substring(
+                        objectName.indexOf(SIGN_SLASH) + 1, objectName.lastIndexOf(SIGN_SLASH) + 1);
     }
 
     @Named("objectNameToFileName")
