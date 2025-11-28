@@ -4,7 +4,7 @@ import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
 import static com.will.cloud.storage.util.AppConstants.SIGN_SLASH;
 
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
-import com.will.cloud.storage.exception.DirectoryAlreadyExistsException;
+import com.will.cloud.storage.exception.ResourceAlreadyExistsException;
 import com.will.cloud.storage.exception.ResourceNotFoundException;
 import com.will.cloud.storage.mapper.ItemMapper;
 import com.will.cloud.storage.model.User;
@@ -12,7 +12,6 @@ import com.will.cloud.storage.service.MinioService;
 import com.will.cloud.storage.service.MinioUtils;
 import com.will.cloud.storage.util.AppConstants;
 
-import io.minio.GenericResponse;
 import io.minio.Result;
 import io.minio.messages.Item;
 
@@ -122,63 +121,85 @@ public class MinioServiceImpl implements MinioService {
                     }
                 }
             } catch (Exception e) {
-
+                // not fully done
             }
         }
         return responseList;
     }
 
-    private static boolean isDirectory(String query, String resourceName) {
-        return resourceName.startsWith(SIGN_SLASH, resourceName.indexOf(query) + query.length());
+    @Override
+    public List<MinioResourceResponseDto> upload(
+            String userProvidedPath, MultipartFile[] files, User user) {
+
+        checkFilesDoNotExistOrThrow(userProvidedPath, files, user);
+
+        List<MinioResourceResponseDto> responses = new ArrayList<>();
+        for (MultipartFile file : files) {
+            String fileName = userProvidedPath + file.getOriginalFilename();
+            String actualPath = remakePath(fileName, user);
+
+            minioUtils.uploadFile(
+                    AppConstants.BUCKET_NAME,
+                    file,
+                    actualPath,
+                    MediaType.MULTIPART_FORM_DATA_VALUE);
+
+            responses.add(
+                    itemMapper.mapToMinioResourceResponseDto(
+                            minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, actualPath)));
+        }
+        return responses;
     }
 
-    private static boolean isResourceEligibleToBeAdded(
-            String query, String resourceName, String prefix) {
-        return resourceName.contains(query)
-                && resourceName.substring(prefix.length()).contains(query);
+    private void checkFilesDoNotExistOrThrow(
+            String userProvidedPath, MultipartFile[] files, User user) {
+        String actualPrefix = remakePath(userProvidedPath, user) + SIGN_SLASH;
+        for (MultipartFile file : files) {
+            String actualPath = actualPrefix + file.getOriginalFilename();
+            throwExceptionIfResourceExists(
+                    userProvidedPath + file.getOriginalFilename(),
+                    actualPath,
+                    file.getOriginalFilename(),
+                    userProvidedPath);
+        }
     }
 
     @Override
-    public List<MinioResourceResponseDto> upload(String path, MultipartFile file) {
-        // TODO: will be reworked
-        String fileName = path + file.getOriginalFilename();
-        GenericResponse objectWriteResponse =
-                minioUtils.uploadFile(
-                        AppConstants.BUCKET_NAME,
-                        file,
-                        fileName,
-                        MediaType.MULTIPART_FORM_DATA_VALUE);
-        return List.of();
-    }
-
-    @Override
-    public MinioResourceResponseDto createDirectory(User user, String path) {
+    public MinioResourceResponseDto createDirectory(User user, String userProvidedPath) {
         String pathWithoutSlash =
-                path.endsWith(SIGN_SLASH) ? path.substring(0, path.length() - 1) : path;
+                userProvidedPath.endsWith(SIGN_SLASH)
+                        ? userProvidedPath.substring(0, userProvidedPath.length() - 1)
+                        : userProvidedPath;
         String fullPath = remakePath(pathWithoutSlash, user);
         String directoryName = fullPath.substring(fullPath.lastIndexOf(SIGN_SLASH));
-        String actualPath = fullPath.replace(directoryName, "");
+        String path = fullPath.replace(directoryName, "");
 
-        checkResourceExistsOrThrowException(actualPath, true);
-        try {
-            checkResourceExistsOrThrowException(fullPath, true);
-            log.error(
-                    "User: [{}], directory [{}] already exist, throwing exception",
-                    MDC.get(MDC_USERNAME_KEY),
-                    path);
-            throw new DirectoryAlreadyExistsException(
-                    String.format(
-                            "Directory [%s] already exists under path [%s]",
-                            directoryName,
-                            actualPath.substring(actualPath.indexOf(SIGN_SLASH) + 1)));
-        } catch (ResourceNotFoundException e) {
-            // this path is aimed to be created, so it is okay for it to be absent
-        }
+        checkResourceExistsOrThrowException(path, true);
+        throwExceptionIfResourceExists(userProvidedPath, fullPath, directoryName, path);
 
         minioUtils.createDir(AppConstants.BUCKET_NAME, fullPath);
         log.info(
-                "User: [{}], successfully created directory [{}]", MDC.get(MDC_USERNAME_KEY), path);
+                "User: [{}], successfully created directory [{}]",
+                MDC.get(MDC_USERNAME_KEY),
+                userProvidedPath);
         return getResource(user, pathWithoutSlash + SIGN_SLASH);
+    }
+
+    private void throwExceptionIfResourceExists(
+            String userProvidedPath, String fullPath, String resourceName, String path) {
+        try {
+            checkResourceExistsOrThrowException(fullPath, isFolder(resourceName));
+            log.error(
+                    "User: [{}], resource [{}] already exist, throwing exception",
+                    MDC.get(MDC_USERNAME_KEY),
+                    userProvidedPath);
+            throw new ResourceAlreadyExistsException(
+                    String.format(
+                            "Resource [%s] already exists under path [%s]",
+                            resourceName, path));
+        } catch (ResourceNotFoundException e) {
+            // this path is aimed to be created, so it is okay for it to be absent
+        }
     }
 
     @Override
@@ -205,6 +226,16 @@ public class MinioServiceImpl implements MinioService {
                 response.size(),
                 path);
         return response;
+    }
+
+    private static boolean isDirectory(String query, String resourceName) {
+        return resourceName.startsWith(SIGN_SLASH, resourceName.indexOf(query) + query.length());
+    }
+
+    private static boolean isResourceEligibleToBeAdded(
+            String query, String resourceName, String prefix) {
+        return resourceName.contains(query)
+                && resourceName.substring(prefix.length()).contains(query);
     }
 
     private void moveResource(String actualFromPath, String actualToPath, boolean isFolder) {

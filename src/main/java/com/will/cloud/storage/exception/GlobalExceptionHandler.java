@@ -49,9 +49,9 @@ public class GlobalExceptionHandler {
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)
-    @ExceptionHandler(DirectoryAlreadyExistsException.class)
+    @ExceptionHandler(ResourceAlreadyExistsException.class)
     public ResponseEntity<ApiErrorDto> handleDirectoryAlreadyExistsException(
-            DirectoryAlreadyExistsException e, HttpServletRequest request) {
+            ResourceAlreadyExistsException e, HttpServletRequest request) {
         HttpStatus httpStatus = HttpStatus.CONFLICT;
         ApiErrorDto errorDto =
                 buildApiErrorDto("Already exist.", e.getMessage(), request, httpStatus);

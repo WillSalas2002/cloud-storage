@@ -32,6 +32,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MinioUtils {
 
+    private static final long SMALL_FILE_THRESHOLD = 5 * 1024 * 1024L;
+
     private final MinioClient minioClient;
 
     @SneakyThrows(Exception.class)
@@ -112,15 +114,16 @@ public class MinioUtils {
     }
 
     @SneakyThrows(Exception.class)
-    public ObjectWriteResponse uploadFile(
+    public void uploadFile(
             String bucketName, MultipartFile file, String objectName, String contentType) {
+        long partSize = Math.max(SMALL_FILE_THRESHOLD, file.getSize() + 1);
         try (InputStream inputStream = file.getInputStream()) {
-            return minioClient.putObject(
+            minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
                             .contentType(contentType)
-                            .stream(inputStream, file.getSize(), -1)
+                            .stream(inputStream, file.getSize(), partSize)
                             .build());
         }
     }

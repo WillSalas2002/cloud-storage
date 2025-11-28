@@ -21,7 +21,7 @@ public interface MinioService {
 
     List<MinioResourceResponseDto> search(String query, User user);
 
-    List<MinioResourceResponseDto> upload(String query, MultipartFile file);
+    List<MinioResourceResponseDto> upload(String query, MultipartFile[] files, User user);
 
     MinioResourceResponseDto createDirectory(User user, String path);
 
