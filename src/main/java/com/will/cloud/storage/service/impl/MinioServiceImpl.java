@@ -181,6 +181,32 @@ public class MinioServiceImpl implements MinioService {
         return getResource(user, pathWithoutSlash + SIGN_SLASH);
     }
 
+    @Override
+    public List<MinioResourceResponseDto> searchDirectory(String path, User user) {
+        String actualPath = remakePath(path, user);
+        checkResourceExistsOrThrowException(actualPath, true);
+
+        List<MinioResourceResponseDto> response = new ArrayList<>();
+        Iterable<Result<Item>> results =
+                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualPath + SIGN_SLASH, false);
+        try {
+            for (Result<Item> result : results) {
+                response.add(itemMapper.mapToMinioResourceResponseDto(result.get()));
+            }
+        } catch (Exception e) {
+            log.error(
+                    "User: [{}], error occurred when trying to get directory [{}]",
+                    MDC.get(MDC_USERNAME_KEY),
+                    path);
+        }
+        log.info(
+                "User: [{}], found [{}] resources under path [{}]",
+                MDC.get(MDC_USERNAME_KEY),
+                response.size(),
+                path);
+        return response;
+    }
+
     private void moveResource(String actualFromPath, String actualToPath, boolean isFolder) {
         Iterable<Result<Item>> results =
                 minioUtils.listObjects(AppConstants.BUCKET_NAME, actualFromPath, true);

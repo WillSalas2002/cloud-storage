@@ -1,12 +1,14 @@
 package com.will.cloud.storage.controller;
 
+import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
+
 import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
 import com.will.cloud.storage.model.User;
 import com.will.cloud.storage.service.MinioService;
 
 import lombok.RequiredArgsConstructor;
-
 import lombok.extern.slf4j.Slf4j;
+
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
-
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -32,7 +32,9 @@ public class MinioDirectoryController {
     @GetMapping
     public ResponseEntity<List<MinioResourceResponseDto>> getDirectory(
             @RequestParam(value = "path") String path, @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(minioService.search(path, user));
+        MDC.put(MDC_USERNAME_KEY, user.getUsername());
+        log.info("User [{}] is searching for a directory [{}]", MDC.get(MDC_USERNAME_KEY), path);
+        return ResponseEntity.ok(minioService.searchDirectory(path, user));
     }
 
     @PostMapping
