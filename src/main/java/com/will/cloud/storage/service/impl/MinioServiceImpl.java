@@ -160,7 +160,8 @@ public class MinioServiceImpl implements MinioService {
                     userProvidedPath + file.getOriginalFilename(),
                     actualPath,
                     file.getOriginalFilename(),
-                    userProvidedPath);
+                    userProvidedPath,
+                    false);
         }
     }
 
@@ -175,9 +176,9 @@ public class MinioServiceImpl implements MinioService {
         String path = fullPath.replace(directoryName, "");
 
         checkResourceExistsOrThrowException(path, true);
-        throwExceptionIfResourceExists(userProvidedPath, fullPath, directoryName, path);
+        throwExceptionIfResourceExists(userProvidedPath, fullPath, directoryName, path, true);
 
-        minioUtils.createDir(AppConstants.BUCKET_NAME, fullPath);
+        minioUtils.createDir(AppConstants.BUCKET_NAME, fullPath + SIGN_SLASH);
         log.info(
                 "User: [{}], successfully created directory [{}]",
                 MDC.get(MDC_USERNAME_KEY),
@@ -186,17 +187,20 @@ public class MinioServiceImpl implements MinioService {
     }
 
     private void throwExceptionIfResourceExists(
-            String userProvidedPath, String fullPath, String resourceName, String path) {
+            String userProvidedPath,
+            String fullPath,
+            String resourceName,
+            String path,
+            boolean isFolder) {
         try {
-            checkResourceExistsOrThrowException(fullPath, isFolder(resourceName));
+            checkResourceExistsOrThrowException(fullPath, isFolder);
             log.error(
                     "User: [{}], resource [{}] already exist, throwing exception",
                     MDC.get(MDC_USERNAME_KEY),
                     userProvidedPath);
             throw new ResourceAlreadyExistsException(
                     String.format(
-                            "Resource [%s] already exists under path [%s]",
-                            resourceName, path));
+                            "Resource [%s] already exists under path [%s]", resourceName, path));
         } catch (ResourceNotFoundException e) {
             // this path is aimed to be created, so it is okay for it to be absent
         }

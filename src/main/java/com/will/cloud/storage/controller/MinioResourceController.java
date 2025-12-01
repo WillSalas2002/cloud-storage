@@ -89,7 +89,7 @@ public class MinioResourceController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<List<MinioResourceResponseDto>> uploadResource(
+    public ResponseEntity<List<MinioResourceResponseDto>> uploadResources(
             @RequestParam("path") String path,
             @RequestParam("file") MultipartFile[] files,
             @AuthenticationPrincipal User user) {
