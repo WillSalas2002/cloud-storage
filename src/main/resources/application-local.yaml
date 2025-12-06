@@ -1,0 +1,67 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: cloud-storage
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5555/cloud-storage
+    username: postgres
+    password: postgres
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+  hikari:
+    minimum-idle: 3
+    maximum-pool-size: 20
+    connection-timeout: 30000
+    idle-timeout: 60000
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      repositories:
+        enabled: false
+      ssl:
+        enabled: false
+  redis:
+    ssl: false
+
+  session:
+    store-type: redis
+    timeout: 3600
+
+  docker:
+    compose:
+      enabled: false
+      file: docker-compose.yaml
+      lifecycle-management: start_only
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 200MB
+      max-request-size: 200MB
+      file-size-threshold: 10MB
+
+minio:
+  url: http://localhost:9000
+  username: user
+  password: password
+  bucket: "user-files"
+
+logging:
+  level:
+    org:
+      springframework:
+        security: TRACE
