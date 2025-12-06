@@ -22,7 +22,7 @@ public interface ItemMapper {
             target = "name",
             expression = "java(objectNameToFileName(item.objectName(), item.isDir()))")
     @Mapping(target = "size", expression = "java(item.size())")
-    @Mapping(target = "resourceType", expression = "java(identifyResourceType(item.objectName()))")
+    @Mapping(target = "type", expression = "java(identifyResourceType(item.objectName()))")
     MinioResourceResponseDto mapToMinioResourceResponseDto(Item item);
 
     @Named("objectNameToPath")
@@ -43,7 +43,7 @@ public interface ItemMapper {
             return objectName.substring(objectName.lastIndexOf(SIGN_SLASH) + 1);
         }
         return objectName.substring(
-                getPreLastIndexOfSlash(objectName) + 1, objectName.lastIndexOf(SIGN_SLASH));
+                getPreLastIndexOfSlash(objectName) + 1, objectName.lastIndexOf(SIGN_SLASH) + 1);
     }
 
     @Named("identifyResourceType")

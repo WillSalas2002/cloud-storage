@@ -2,6 +2,7 @@ package com.will.cloud.storage.controller;
 
 import com.will.cloud.storage.dto.request.AuthRequest;
 import com.will.cloud.storage.dto.response.AuthResponse;
+import com.will.cloud.storage.model.User;
 import com.will.cloud.storage.service.AuthService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,8 +20,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.security.Principal;
 
 @Slf4j
 @RestController
@@ -51,11 +50,11 @@ public class AuthController {
             HttpServletResponse response) {
         log.info(
                 "User {} is trying to log out.",
-                ((Principal) authentication.getPrincipal()).getName());
+                ((User) authentication.getPrincipal()).getUsername());
         this.logoutHandler.logout(request, response, authentication);
         log.info(
                 "User {} successfully logged out.",
-                ((Principal) authentication.getPrincipal()).getName());
+                ((User) authentication.getPrincipal()).getUsername());
         return ResponseEntity.noContent().build();
     }
 }

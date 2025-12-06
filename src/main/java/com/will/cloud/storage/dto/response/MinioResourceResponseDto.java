@@ -9,4 +9,4 @@ public record MinioResourceResponseDto(
         String path,
         String name,
         @JsonInclude(value = JsonInclude.Include.NON_DEFAULT) Long size,
-        ResourceType resourceType) {}
+        ResourceType type) {}

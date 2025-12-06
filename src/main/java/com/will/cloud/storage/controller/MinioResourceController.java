@@ -91,8 +91,9 @@ public class MinioResourceController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<MinioResourceResponseDto>> uploadResources(
             @RequestParam("path") String path,
-            @RequestParam("file") MultipartFile[] files,
+            @RequestParam("object") MultipartFile[] files,
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(minioService.upload(path, files, user));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(minioService.upload(path, files, user));
     }
 }

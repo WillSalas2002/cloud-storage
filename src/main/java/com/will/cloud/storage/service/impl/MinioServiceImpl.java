@@ -209,13 +209,17 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public List<MinioResourceResponseDto> searchDirectory(String path, User user) {
         String actualPath = remakePath(path, user);
+        String actualPathWithSlash = actualPath.concat(SIGN_SLASH);
         checkResourceExistsOrThrowException(actualPath, true);
 
         List<MinioResourceResponseDto> response = new ArrayList<>();
         Iterable<Result<Item>> results =
-                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualPath + SIGN_SLASH, false);
+                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualPathWithSlash, false);
         try {
             for (Result<Item> result : results) {
+                if (result.get().objectName().equals(actualPathWithSlash)) {
+                    continue;
+                }
                 response.add(itemMapper.mapToMinioResourceResponseDto(result.get()));
             }
         } catch (Exception e) {
@@ -252,10 +256,7 @@ public class MinioServiceImpl implements MinioService {
                 String to;
 
                 if (!isFolder) {
-                    to =
-                            actualToPath.concat(
-                                    actualFromPath.substring(
-                                            actualFromPath.lastIndexOf(SIGN_SLASH)));
+                    to = actualToPath;
                     log.info(
                             "User [{}], moving file from [{}] to [{}]",
                             MDC.get(MDC_USERNAME_KEY),
@@ -380,11 +381,10 @@ public class MinioServiceImpl implements MinioService {
     private String remakePath(String path, User user) {
         log.info("User: [{}], remaking path", MDC.get(MDC_USERNAME_KEY));
         String prefix = String.format(AppConstants.PERSONAL_FOLDER_NAME_TEMPLATE, user.getId());
+        path = path.startsWith(SIGN_SLASH) ? path : SIGN_SLASH.concat(path);
         return isFolder(path)
                 ? prefix.concat(path.substring(0, path.length() - 1))
-                : path.isEmpty()
-                        ? prefix.substring(0, prefix.indexOf(SIGN_SLASH))
-                        : prefix.concat(path);
+                : prefix.concat(path);
     }
 
     private void checkResourceExistsOrThrowException(String path, boolean isFolder) {
