@@ -382,7 +382,9 @@ public class MinioServiceImpl implements MinioService {
         String prefix = String.format(AppConstants.PERSONAL_FOLDER_NAME_TEMPLATE, user.getId());
         return isFolder(path)
                 ? prefix.concat(path.substring(0, path.length() - 1))
-                : prefix.concat(path);
+                : path.isEmpty()
+                        ? prefix.substring(0, prefix.indexOf(SIGN_SLASH))
+                        : prefix.concat(path);
     }
 
     private void checkResourceExistsOrThrowException(String path, boolean isFolder) {

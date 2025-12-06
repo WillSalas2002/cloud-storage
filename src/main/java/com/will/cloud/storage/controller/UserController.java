@@ -4,12 +4,14 @@ import com.will.cloud.storage.dto.response.UserProfileDto;
 
 import lombok.RequiredArgsConstructor;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
@@ -17,6 +19,7 @@ public class UserController {
 
     @GetMapping("/user/me")
     public UserProfileDto getProfile(Principal principal) {
+        log.info("Trying to get user, by hitting endpoint /user/me");
         return new UserProfileDto(principal.getName());
     }
 }
