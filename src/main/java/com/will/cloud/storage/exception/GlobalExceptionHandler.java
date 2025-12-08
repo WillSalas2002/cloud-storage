@@ -58,11 +58,21 @@ public class GlobalExceptionHandler {
         return logAndRespond(httpStatus, errorDto);
     }
 
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorDto> handleUnknownException(
+            Exception e, HttpServletRequest request) {
+        HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+        ApiErrorDto errorDto =
+                buildApiErrorDto("Internal Server Error.", e.getMessage(), request, httpStatus);
+        return logAndRespond(httpStatus, errorDto);
+    }
+
     private static ApiErrorDto buildApiErrorDto(
             String title, String errorDetail, HttpServletRequest request, HttpStatus status) {
         return ApiErrorDto.builder()
                 .title(title)
-                .detail(errorDetail)
+                .message(errorDetail)
                 .status(status.value())
                 .uri(request.getRequestURI())
                 .build();
