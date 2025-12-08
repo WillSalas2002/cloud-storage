@@ -46,7 +46,7 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public MinioResourceResponseDto getResource(User user, String path) {
         String actualPath = remakePath(path, user);
-        checkResourceExistsOrThrowException(actualPath, isFolder(path));
+        throwExceptionIfResourceDoesNotExist(actualPath, isFolder(path));
 
         Item item = minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, actualPath);
         log.info("User: [{}], found and returning requested file.", user.getUsername());
@@ -56,7 +56,7 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public void deleteResource(User user, String path, boolean isRestoreFolder) {
         String actualPath = remakePath(path, user);
-        checkResourceExistsOrThrowException(actualPath, isFolder(path));
+        throwExceptionIfResourceDoesNotExist(actualPath, isFolder(path));
 
         if (isFolder(path)) {
             removeFilesFromFolderRecursively(actualPath);
@@ -69,7 +69,7 @@ public class MinioServiceImpl implements MinioService {
                 actualPath);
 
         if (isRestoreFolder) {
-            restoreFolder(path.substring(0, path.lastIndexOf(SIGN_SLASH) + 1), user);
+            restoreFolder(path.substring(0, path.lastIndexOf(SIGN_SLASH)), user);
         }
     }
 
@@ -77,7 +77,7 @@ public class MinioServiceImpl implements MinioService {
     public void downloadResource(String path, User user, HttpServletResponse response) {
         String actualPath = remakePath(path, user);
         boolean isFolder = isFolder(path);
-        checkResourceExistsOrThrowException(actualPath, isFolder);
+        throwExceptionIfResourceDoesNotExist(actualPath, isFolder);
 
         if (isFolder) {
             downloadFolderAsZip(actualPath, response);
@@ -89,8 +89,9 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public MinioResourceResponseDto moveResource(String from, String to, User user) {
         String actualFromPath = remakePath(from, user);
-        checkResourceExistsOrThrowException(actualFromPath, isFolder(from));
+        throwExceptionIfResourceDoesNotExist(actualFromPath, isFolder(from));
         String actualToPath = remakePath(to, user);
+        throwExceptionIfResourceExists(actualToPath, isFolder(to));
 
         moveResource(actualFromPath, actualToPath, isFolder(from));
 
@@ -156,12 +157,7 @@ public class MinioServiceImpl implements MinioService {
         String actualPrefix = remakePath(userProvidedPath, user) + SIGN_SLASH;
         for (MultipartFile file : files) {
             String actualPath = actualPrefix + file.getOriginalFilename();
-            throwExceptionIfResourceExists(
-                    userProvidedPath + file.getOriginalFilename(),
-                    actualPath,
-                    file.getOriginalFilename(),
-                    userProvidedPath,
-                    false);
+            throwExceptionIfResourceExists(actualPath, false);
         }
     }
 
@@ -175,10 +171,10 @@ public class MinioServiceImpl implements MinioService {
         String directoryName = fullPath.substring(fullPath.lastIndexOf(SIGN_SLASH));
         String path = fullPath.replace(directoryName, "");
 
-        checkResourceExistsOrThrowException(path, true);
-        throwExceptionIfResourceExists(userProvidedPath, fullPath, directoryName, path, true);
+        throwExceptionIfResourceDoesNotExist(path, true);
+        throwExceptionIfResourceExists(fullPath, true);
 
-        minioUtils.createDir(AppConstants.BUCKET_NAME, fullPath + SIGN_SLASH);
+        minioUtils.createDir(AppConstants.BUCKET_NAME, fullPath);
         log.info(
                 "User: [{}], successfully created directory [{}]",
                 MDC.get(MDC_USERNAME_KEY),
@@ -186,21 +182,16 @@ public class MinioServiceImpl implements MinioService {
         return getResource(user, pathWithoutSlash + SIGN_SLASH);
     }
 
-    private void throwExceptionIfResourceExists(
-            String userProvidedPath,
-            String fullPath,
-            String resourceName,
-            String path,
-            boolean isFolder) {
+    private void throwExceptionIfResourceExists(String fullPath, boolean isFolder) {
         try {
-            checkResourceExistsOrThrowException(fullPath, isFolder);
+            throwExceptionIfResourceDoesNotExist(fullPath, isFolder);
+            String resourceName = fullPath.substring(fullPath.lastIndexOf(SIGN_SLASH));
             log.error(
                     "User: [{}], resource [{}] already exist, throwing exception",
                     MDC.get(MDC_USERNAME_KEY),
-                    userProvidedPath);
+                    resourceName);
             throw new ResourceAlreadyExistsException(
-                    String.format(
-                            "Resource [%s] already exists under path [%s]", resourceName, path));
+                    String.format("Resource [%s] already exists", resourceName));
         } catch (ResourceNotFoundException e) {
             // this path is aimed to be created, so it is okay for it to be absent
         }
@@ -210,7 +201,7 @@ public class MinioServiceImpl implements MinioService {
     public List<MinioResourceResponseDto> searchDirectory(String path, User user) {
         String actualPath = remakePath(path, user);
         String actualPathWithSlash = actualPath.concat(SIGN_SLASH);
-        checkResourceExistsOrThrowException(actualPath, true);
+        throwExceptionIfResourceDoesNotExist(actualPath, true);
 
         List<MinioResourceResponseDto> response = new ArrayList<>();
         Iterable<Result<Item>> results =
@@ -387,7 +378,7 @@ public class MinioServiceImpl implements MinioService {
                 : prefix.concat(path);
     }
 
-    private void checkResourceExistsOrThrowException(String path, boolean isFolder) {
+    private void throwExceptionIfResourceDoesNotExist(String path, boolean isFolder) {
         log.info(
                 "User: [{}], checking if file exists under path [{}]",
                 MDC.get(MDC_USERNAME_KEY),

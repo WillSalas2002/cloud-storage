@@ -1,5 +1,7 @@
 package com.will.cloud.storage.service;
 
+import static com.will.cloud.storage.util.AppConstants.*;
+
 import io.minio.BucketExistsArgs;
 import io.minio.CopyObjectArgs;
 import io.minio.CopySource;
@@ -179,10 +181,11 @@ public class MinioUtils {
     }
 
     @SneakyThrows(Exception.class)
-    public ObjectWriteResponse createDir(String bucketName, String objectName) {
-        return minioClient.putObject(
+    public void createDir(String bucketName, String objectName) {
+        objectName = objectName.endsWith(SIGN_SLASH) ? objectName : objectName + SIGN_SLASH;
+        minioClient.putObject(
                 PutObjectArgs.builder().bucket(bucketName).object(objectName).stream(
-                                new ByteArrayInputStream(new byte[] {}), 0, -1)
+                                new ByteArrayInputStream(new byte[]{}), 0, -1)
                         .build());
     }
 
