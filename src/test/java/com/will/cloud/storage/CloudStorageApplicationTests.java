@@ -1,4 +1,4 @@
-package com.will.cloud_storage;
+package com.will.cloud.storage;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Import;
 @SpringBootTest
 class CloudStorageApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void contextLoads() {
+        // this method checks if the spring context loads correctly
+    }
 }

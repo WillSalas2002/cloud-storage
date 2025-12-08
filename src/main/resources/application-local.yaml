@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8082
 
 spring:
   application:
@@ -7,7 +7,7 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://postgres:5432/cloud-storage
+    url: jdbc:postgresql://localhost:5555/cloud-storage
     username: postgres
     password: postgres
 
@@ -28,7 +28,7 @@ spring:
 
   data:
     redis:
-      host: redis
+      host: localhost
       port: 6379
       repositories:
         enabled: false
@@ -55,7 +55,7 @@ spring:
       file-size-threshold: 10MB
 
 minio:
-  url: http://minio:9000
+  url: http://localhost:9000
   username: user
   password: password
   bucket: "user-files"
@@ -64,4 +64,4 @@ logging:
   level:
     org:
       springframework:
-        security: DEBUG
+        security: TRACE

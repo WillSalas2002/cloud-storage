@@ -1,0 +1,403 @@
+package com.will.cloud.storage.service.impl;
+
+import static com.will.cloud.storage.util.AppConstants.MDC_USERNAME_KEY;
+import static com.will.cloud.storage.util.AppConstants.SIGN_SLASH;
+
+import com.will.cloud.storage.dto.response.MinioResourceResponseDto;
+import com.will.cloud.storage.exception.ResourceAlreadyExistsException;
+import com.will.cloud.storage.exception.ResourceNotFoundException;
+import com.will.cloud.storage.mapper.ItemMapper;
+import com.will.cloud.storage.model.User;
+import com.will.cloud.storage.service.MinioService;
+import com.will.cloud.storage.service.MinioUtils;
+import com.will.cloud.storage.util.AppConstants;
+
+import io.minio.Result;
+import io.minio.messages.Item;
+
+import jakarta.servlet.http.HttpServletResponse;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.slf4j.MDC;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class MinioServiceImpl implements MinioService {
+
+    private final MinioUtils minioUtils;
+    private final ItemMapper itemMapper;
+
+    @Override
+    public MinioResourceResponseDto getResource(User user, String path) {
+        String actualPath = remakePath(path, user);
+        throwExceptionIfResourceDoesNotExist(actualPath, isFolder(path));
+
+        Item item = minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, actualPath);
+        log.info("User: [{}], found and returning requested file.", user.getUsername());
+        return itemMapper.mapToMinioResourceResponseDto(item);
+    }
+
+    @Override
+    public void deleteResource(User user, String path, boolean isRestoreFolder) {
+        String actualPath = remakePath(path, user);
+        throwExceptionIfResourceDoesNotExist(actualPath, isFolder(path));
+
+        if (isFolder(path)) {
+            removeFilesFromFolderRecursively(actualPath);
+        } else {
+            minioUtils.removeFile(AppConstants.BUCKET_NAME, actualPath);
+        }
+        log.info(
+                "User: [{}], found and removed resource [{}] file/folder.",
+                MDC.get(MDC_USERNAME_KEY),
+                actualPath);
+
+        if (isRestoreFolder) {
+            restoreFolder(path.substring(0, path.lastIndexOf(SIGN_SLASH)), user);
+        }
+    }
+
+    @Override
+    public void downloadResource(String path, User user, HttpServletResponse response) {
+        String actualPath = remakePath(path, user);
+        boolean isFolder = isFolder(path);
+        throwExceptionIfResourceDoesNotExist(actualPath, isFolder);
+
+        if (isFolder) {
+            downloadFolderAsZip(actualPath, response);
+        } else {
+            downloadSingleFile(actualPath, response);
+        }
+    }
+
+    @Override
+    public MinioResourceResponseDto moveResource(String from, String to, User user) {
+        String actualFromPath = remakePath(from, user);
+        throwExceptionIfResourceDoesNotExist(actualFromPath, isFolder(from));
+        String actualToPath = remakePath(to, user);
+        throwExceptionIfResourceExists(actualToPath, isFolder(to));
+
+        moveResource(actualFromPath, actualToPath, isFolder(from));
+
+        deleteResource(user, from, false);
+        return itemMapper.mapToMinioResourceResponseDto(
+                minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, actualToPath));
+    }
+
+    @Override
+    public List<MinioResourceResponseDto> search(String query, User user) {
+        List<MinioResourceResponseDto> responseList = new ArrayList<>();
+        Iterable<Result<Item>> results = minioUtils.listObjects(AppConstants.BUCKET_NAME, "", true);
+        String prefix = "";
+
+        for (Result<Item> result : results) {
+            try {
+                Item item = result.get();
+                String resourceName = item.objectName();
+                log.info(resourceName);
+                if (isResourceEligibleToBeAdded(query, resourceName, prefix)) {
+                    prefix = resourceName.substring(0, resourceName.lastIndexOf(SIGN_SLASH) + 1);
+                    if (isDirectory(query, resourceName)) {
+                        responseList.add(
+                                getResource(
+                                        user, prefix.substring(prefix.indexOf(SIGN_SLASH) + 1)));
+                    } else {
+                        responseList.add(itemMapper.mapToMinioResourceResponseDto(item));
+                    }
+                }
+            } catch (Exception e) {
+                // not fully done
+            }
+        }
+        return responseList;
+    }
+
+    @Override
+    public List<MinioResourceResponseDto> upload(
+            String userProvidedPath, MultipartFile[] files, User user) {
+
+        checkFilesDoNotExistOrThrow(userProvidedPath, files, user);
+
+        List<MinioResourceResponseDto> responses = new ArrayList<>();
+        for (MultipartFile file : files) {
+            String fileName = userProvidedPath + file.getOriginalFilename();
+            String actualPath = remakePath(fileName, user);
+
+            minioUtils.uploadFile(
+                    AppConstants.BUCKET_NAME,
+                    file,
+                    actualPath,
+                    MediaType.MULTIPART_FORM_DATA_VALUE);
+
+            responses.add(
+                    itemMapper.mapToMinioResourceResponseDto(
+                            minioUtils.getObjectByPath(AppConstants.BUCKET_NAME, actualPath)));
+        }
+        return responses;
+    }
+
+    private void checkFilesDoNotExistOrThrow(
+            String userProvidedPath, MultipartFile[] files, User user) {
+        String actualPrefix = remakePath(userProvidedPath, user) + SIGN_SLASH;
+        for (MultipartFile file : files) {
+            String actualPath = actualPrefix + file.getOriginalFilename();
+            throwExceptionIfResourceExists(actualPath, false);
+        }
+    }
+
+    @Override
+    public MinioResourceResponseDto createDirectory(User user, String userProvidedPath) {
+        String pathWithoutSlash =
+                userProvidedPath.endsWith(SIGN_SLASH)
+                        ? userProvidedPath.substring(0, userProvidedPath.length() - 1)
+                        : userProvidedPath;
+        String fullPath = remakePath(pathWithoutSlash, user);
+        String directoryName = fullPath.substring(fullPath.lastIndexOf(SIGN_SLASH));
+        String path = fullPath.replace(directoryName, "");
+
+        throwExceptionIfResourceDoesNotExist(path, true);
+        throwExceptionIfResourceExists(fullPath, true);
+
+        minioUtils.createDir(AppConstants.BUCKET_NAME, fullPath);
+        log.info(
+                "User: [{}], successfully created directory [{}]",
+                MDC.get(MDC_USERNAME_KEY),
+                userProvidedPath);
+        return getResource(user, pathWithoutSlash + SIGN_SLASH);
+    }
+
+    private void throwExceptionIfResourceExists(String fullPath, boolean isFolder) {
+        try {
+            throwExceptionIfResourceDoesNotExist(fullPath, isFolder);
+            String resourceName = fullPath.substring(fullPath.lastIndexOf(SIGN_SLASH));
+            log.error(
+                    "User: [{}], resource [{}] already exist, throwing exception",
+                    MDC.get(MDC_USERNAME_KEY),
+                    resourceName);
+            throw new ResourceAlreadyExistsException(
+                    String.format("Resource [%s] already exists", resourceName));
+        } catch (ResourceNotFoundException e) {
+            // this path is aimed to be created, so it is okay for it to be absent
+        }
+    }
+
+    @Override
+    public List<MinioResourceResponseDto> searchDirectory(String path, User user) {
+        String actualPath = remakePath(path, user);
+        String actualPathWithSlash = actualPath.concat(SIGN_SLASH);
+        throwExceptionIfResourceDoesNotExist(actualPath, true);
+
+        List<MinioResourceResponseDto> response = new ArrayList<>();
+        Iterable<Result<Item>> results =
+                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualPathWithSlash, false);
+        try {
+            for (Result<Item> result : results) {
+                if (result.get().objectName().equals(actualPathWithSlash)) {
+                    continue;
+                }
+                response.add(itemMapper.mapToMinioResourceResponseDto(result.get()));
+            }
+        } catch (Exception e) {
+            log.error(
+                    "User: [{}], error occurred when trying to get directory [{}]",
+                    MDC.get(MDC_USERNAME_KEY),
+                    path);
+        }
+        log.info(
+                "User: [{}], found [{}] resources under path [{}]",
+                MDC.get(MDC_USERNAME_KEY),
+                response.size(),
+                path);
+        return response;
+    }
+
+    private static boolean isDirectory(String query, String resourceName) {
+        return resourceName.startsWith(SIGN_SLASH, resourceName.indexOf(query) + query.length());
+    }
+
+    private static boolean isResourceEligibleToBeAdded(
+            String query, String resourceName, String prefix) {
+        return resourceName.contains(query)
+                && resourceName.substring(prefix.length()).contains(query);
+    }
+
+    private void moveResource(String actualFromPath, String actualToPath, boolean isFolder) {
+        Iterable<Result<Item>> results =
+                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualFromPath, true);
+        for (Result<Item> result : results) {
+            try {
+                Item item = result.get();
+                String from = item.objectName();
+                String to;
+
+                if (!isFolder) {
+                    to = actualToPath;
+                    log.info(
+                            "User [{}], moving file from [{}] to [{}]",
+                            MDC.get(MDC_USERNAME_KEY),
+                            from,
+                            to);
+                    minioUtils.copyFile(
+                            AppConstants.BUCKET_NAME, from, AppConstants.BUCKET_NAME, to);
+                    break;
+                }
+
+                to = actualToPath.concat(from.substring(actualFromPath.length()));
+                log.info(
+                        "User [{}], moving file from [{}] to [{}]",
+                        MDC.get(MDC_USERNAME_KEY),
+                        from,
+                        to);
+                minioUtils.copyFile(AppConstants.BUCKET_NAME, from, AppConstants.BUCKET_NAME, to);
+            } catch (Exception e) {
+                log.error(
+                        "User: [{}], error occurred when trying to move file [{}] to [{}]",
+                        MDC.get(MDC_USERNAME_KEY),
+                        actualFromPath,
+                        actualToPath);
+            }
+        }
+    }
+
+    private void downloadSingleFile(String objectName, HttpServletResponse response) {
+        setHeaders(objectName, response);
+        log.info(
+                "User: [{}], getting file's [{}] inputStream and writing it to response",
+                MDC.get(MDC_USERNAME_KEY),
+                objectName);
+
+        try (InputStream is = minioUtils.getObject(AppConstants.BUCKET_NAME, objectName);
+                OutputStream os = response.getOutputStream()) {
+            is.transferTo(os);
+            os.flush();
+        } catch (Exception e) {
+            log.error(
+                    "User: [{}], error occurred when downloading resource [{}]",
+                    MDC.get(MDC_USERNAME_KEY),
+                    objectName);
+        }
+    }
+
+    private void downloadFolderAsZip(String folderPath, HttpServletResponse response) {
+        setHeaders(folderPath, response);
+        log.info(
+                "User: [{}], getting folder's [{}] and its contents inputStream and writing it to response",
+                MDC.get(MDC_USERNAME_KEY),
+                folderPath);
+
+        try (ZipOutputStream zipOut = new ZipOutputStream(response.getOutputStream())) {
+            Iterable<Result<Item>> results =
+                    minioUtils.listObjects(AppConstants.BUCKET_NAME, folderPath, true);
+
+            for (Result<Item> r : results) {
+                Item item = r.get();
+                if (item.isDir()) continue;
+
+                try (InputStream is =
+                        minioUtils.getObject(AppConstants.BUCKET_NAME, item.objectName())) {
+                    String entryName = item.objectName().substring(folderPath.length());
+                    zipOut.putNextEntry(new ZipEntry(entryName));
+
+                    is.transferTo(zipOut);
+                    zipOut.closeEntry();
+                } catch (Exception e) {
+                    log.error(
+                            "User: [{}], error occurred when transfer resource [{}] to zip",
+                            MDC.get(MDC_USERNAME_KEY),
+                            item.objectName());
+                }
+            }
+            zipOut.finish();
+        } catch (Exception e) {
+            log.error(
+                    "User: [{}], error occurred when getting folder [{}] contents recursively",
+                    MDC.get(MDC_USERNAME_KEY),
+                    folderPath);
+        }
+    }
+
+    private void setHeaders(String objectName, HttpServletResponse response) {
+        String fileNameToDownload = objectName.substring(objectName.lastIndexOf(SIGN_SLASH) + 1);
+        String encodedFileName =
+                URLEncoder.encode(fileNameToDownload, StandardCharsets.UTF_8).replace("+", "%20");
+
+        response.setHeader(
+                HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + encodedFileName + "\"");
+        response.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
+    }
+
+    private void restoreFolder(String folderToBeRestored, User user) {
+        log.info("User [{}], restoring folder [{}]", MDC.get(MDC_USERNAME_KEY), folderToBeRestored);
+        String personalFolder =
+                String.format(AppConstants.PERSONAL_FOLDER_NAME_TEMPLATE, user.getId());
+        minioUtils.createDir(AppConstants.BUCKET_NAME, personalFolder.concat(folderToBeRestored));
+    }
+
+    private void removeFilesFromFolderRecursively(String actualPath) {
+        log.info(
+                "User [{}], the specified resource is folder, trying to remove it with all the files inside.",
+                MDC.get(MDC_USERNAME_KEY));
+        Iterable<Result<Item>> results =
+                minioUtils.listObjects(AppConstants.BUCKET_NAME, actualPath, true);
+        results.forEach(
+                i -> {
+                    String fullFileName = null;
+                    try {
+                        fullFileName = i.get().objectName();
+                        minioUtils.removeFile(AppConstants.BUCKET_NAME, fullFileName);
+                    } catch (Exception e) {
+                        log.warn(
+                                "Error happened when trying to remove the file [{}]", fullFileName);
+                    }
+                });
+    }
+
+    private String remakePath(String path, User user) {
+        log.info("User: [{}], remaking path", MDC.get(MDC_USERNAME_KEY));
+        String prefix = String.format(AppConstants.PERSONAL_FOLDER_NAME_TEMPLATE, user.getId());
+        path = path.startsWith(SIGN_SLASH) ? path : SIGN_SLASH.concat(path);
+        return isFolder(path)
+                ? prefix.concat(path.substring(0, path.length() - 1))
+                : prefix.concat(path);
+    }
+
+    private void throwExceptionIfResourceDoesNotExist(String path, boolean isFolder) {
+        log.info(
+                "User: [{}], checking if file exists under path [{}]",
+                MDC.get(MDC_USERNAME_KEY),
+                path);
+        boolean isResourceExist;
+
+        if (isFolder) {
+            isResourceExist = minioUtils.isFolderExist(AppConstants.BUCKET_NAME, path);
+        } else {
+            isResourceExist = minioUtils.isObjectExist(AppConstants.BUCKET_NAME, path);
+        }
+
+        if (!isResourceExist) {
+            throw new ResourceNotFoundException(
+                    path, String.format("Resource [%s] cannot be found", path));
+        }
+    }
+
+    private boolean isFolder(String path) {
+        return path.endsWith(SIGN_SLASH);
+    }
+}
