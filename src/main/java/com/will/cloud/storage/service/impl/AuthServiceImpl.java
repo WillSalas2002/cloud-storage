@@ -37,14 +37,24 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
 
     @Override
-    public AuthResponse signUp(AuthRequest request) {
+    public AuthResponse signUp(AuthRequest request, HttpServletRequest httpRequest) {
         User user = authMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.password()));
         User savedUser = userRepository.save(user);
 
         createMinioFolderForUser(user);
+
+        authenticateUserAndCreateSession(request, httpRequest);
         log.info("User [{}] has successfully signed up", user.getUsername());
         return authMapper.toAuthResponse(savedUser);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AuthResponse signIn(AuthRequest request, HttpServletRequest httpRequest) {
+        Authentication auth = authenticateUserAndCreateSession(request, httpRequest);
+        log.info("User {} successfully logged in", request.username());
+        return new AuthResponse(auth.getName());
     }
 
     private void createMinioFolderForUser(User user) {
@@ -57,9 +67,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername());
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public AuthResponse signIn(AuthRequest request, HttpServletRequest httpRequest) {
+    private Authentication authenticateUserAndCreateSession(
+            AuthRequest request, HttpServletRequest httpRequest) {
         Authentication authenticationToken =
                 new UsernamePasswordAuthenticationToken(request.username(), request.password());
         Authentication auth = authenticationManager.authenticate(authenticationToken);
@@ -70,11 +79,6 @@ public class AuthServiceImpl implements AuthService {
         session.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
                 SecurityContextHolder.getContext());
-
-        log.info(
-                "User {} successfully logged in, session: {}",
-                request.username(),
-                session.getAttribute("SESSION"));
-        return new AuthResponse(auth.getName());
+        return auth;
     }
 }

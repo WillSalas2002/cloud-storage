@@ -31,9 +31,9 @@ public class AuthController {
     private final SecurityContextLogoutHandler logoutHandler;
 
     @PostMapping("/sign-up")
-    public ResponseEntity<AuthResponse> singUp(@Validated @RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> singUp(@Validated @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
         log.info("User {} is trying to sing up.", request.username());
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.signUp(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.signUp(request, httpRequest));
     }
 
     @PostMapping("/sign-in")
