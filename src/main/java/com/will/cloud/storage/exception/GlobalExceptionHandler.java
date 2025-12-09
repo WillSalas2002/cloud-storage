@@ -64,7 +64,7 @@ public class GlobalExceptionHandler {
             Exception e, HttpServletRequest request) {
         HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
         ApiErrorDto errorDto =
-                buildApiErrorDto("Internal Server Error.", e.getMessage(), request, httpStatus);
+                buildApiErrorDto("Internal Server Error.", "Unexpected error occurred", request, httpStatus);
         return logAndRespond(httpStatus, errorDto);
     }
 

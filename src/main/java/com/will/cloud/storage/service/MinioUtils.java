@@ -130,37 +130,6 @@ public class MinioUtils {
         }
     }
 
-    //    /**
-    //     * picture upload
-    //     * @param bucketName
-    //     * @param imageBase64
-    //     * @param imageName
-    //     * @return
-    //     */
-    //    public ObjectWriteResponse uploadImage(String bucketName, String imageBase64, String
-    // imageName) {
-    //        if (!StringUtils.isEmpty(imageBase64)) {
-    //            InputStream in = base64ToInputStream(imageBase64);
-    //            String newName = System.currentTimeMillis() + "_" + imageName + ".jpg";
-    //            String year = String.valueOf(new Date().getYear());
-    //            String month = String.valueOf(new Date().getMonth());
-    //            return uploadFile(bucketName, year + "/" + month + "/" + newName, in);
-    //
-    //        }
-    //        return null;
-    //    }
-    //
-    //    public static InputStream base64ToInputStream(String base64) {
-    //        ByteArrayInputStream stream = null;
-    //        try {
-    //            byte[] bytes = new BASE64Decoder().decodeBuffer(base64.trim());
-    //            stream = new ByteArrayInputStream(bytes);
-    //        } catch (Exception e) {
-    //            e.printStackTrace();
-    //        }
-    //        return stream;
-    //    }
-
     @SneakyThrows(Exception.class)
     public ObjectWriteResponse uploadFile(String bucketName, String objectName, String fileName) {
         return minioClient.uploadObject(
@@ -197,9 +166,9 @@ public class MinioUtils {
     }
 
     @SneakyThrows(Exception.class)
-    public ObjectWriteResponse copyFile(
+    public void copyFile(
             String bucketName, String objectName, String srcBucketName, String srcObjectName) {
-        return minioClient.copyObject(
+        minioClient.copyObject(
                 CopyObjectArgs.builder()
                         .source(CopySource.builder().bucket(bucketName).object(objectName).build())
                         .bucket(srcBucketName)
