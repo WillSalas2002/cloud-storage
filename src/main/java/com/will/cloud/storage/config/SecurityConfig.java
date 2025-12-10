@@ -60,8 +60,10 @@ public class SecurityConfig {
                 .sessionManagement(
                         session ->
                                 session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                                        .sessionFixation()
+                                        .migrateSession()
                                         .maximumSessions(MAX_SESSION_COUNT_PER_USER)
-                                        .maxSessionsPreventsLogin(false))
+                                        .maxSessionsPreventsLogin(true))
                 .exceptionHandling(
                         exception ->
                                 exception.authenticationEntryPoint(
