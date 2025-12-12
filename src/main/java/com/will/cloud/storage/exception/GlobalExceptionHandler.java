@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -25,7 +26,7 @@ public class GlobalExceptionHandler {
         HttpStatus httpStatus = HttpStatus.CONFLICT;
         ApiErrorDto errorDto =
                 buildApiErrorDto("Data Conflict Detected", e.getMessage(), request, httpStatus);
-        return logAndRespond(httpStatus, errorDto);
+        return logAndRespond(httpStatus, errorDto, e);
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -35,7 +36,7 @@ public class GlobalExceptionHandler {
         HttpStatus httpStatus = HttpStatus.NOT_FOUND;
         ApiErrorDto errorDto =
                 buildApiErrorDto("Resource not found.", e.getMessage(), request, httpStatus);
-        return logAndRespond(httpStatus, errorDto);
+        return logAndRespond(httpStatus, errorDto, e);
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -45,7 +46,21 @@ public class GlobalExceptionHandler {
         HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
         ApiErrorDto errorDto =
                 buildApiErrorDto("Bad request.", e.getMessage(), request, httpStatus);
-        return logAndRespond(httpStatus, errorDto);
+        return logAndRespond(httpStatus, errorDto, e);
+    }
+
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiErrorDto> handleBadCredentialsException(
+            Exception e, HttpServletRequest request) {
+        HttpStatus httpStatus = HttpStatus.UNAUTHORIZED;
+        ApiErrorDto errorDto =
+                buildApiErrorDto(
+                        "Bad credentials.",
+                        "Incorrect username or password.",
+                        request,
+                        httpStatus);
+        return logAndRespond(httpStatus, errorDto, e);
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)
@@ -55,7 +70,7 @@ public class GlobalExceptionHandler {
         HttpStatus httpStatus = HttpStatus.CONFLICT;
         ApiErrorDto errorDto =
                 buildApiErrorDto("Already exist.", e.getMessage(), request, httpStatus);
-        return logAndRespond(httpStatus, errorDto);
+        return logAndRespond(httpStatus, errorDto, e);
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -64,8 +79,9 @@ public class GlobalExceptionHandler {
             Exception e, HttpServletRequest request) {
         HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
         ApiErrorDto errorDto =
-                buildApiErrorDto("Internal Server Error.", e.getMessage(), request, httpStatus);
-        return logAndRespond(httpStatus, errorDto);
+                buildApiErrorDto(
+                        "Internal Server Error.", "Unexpected error occurred", request, httpStatus);
+        return logAndRespond(httpStatus, errorDto, e);
     }
 
     private static ApiErrorDto buildApiErrorDto(
@@ -78,8 +94,9 @@ public class GlobalExceptionHandler {
                 .build();
     }
 
-    private ResponseEntity<ApiErrorDto> logAndRespond(HttpStatus status, ApiErrorDto apiError) {
-        log.error("{}\n{}", apiError.title(), apiError);
+    private ResponseEntity<ApiErrorDto> logAndRespond(
+            HttpStatus status, ApiErrorDto apiError, Exception e) {
+        log.error("{}\n{}", apiError.title(), e.getMessage());
         return new ResponseEntity<>(apiError, status);
     }
 }

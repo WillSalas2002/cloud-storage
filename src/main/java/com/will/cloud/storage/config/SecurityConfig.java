@@ -60,8 +60,10 @@ public class SecurityConfig {
                 .sessionManagement(
                         session ->
                                 session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                                        .sessionFixation()
+                                        .migrateSession()
                                         .maximumSessions(MAX_SESSION_COUNT_PER_USER)
-                                        .maxSessionsPreventsLogin(false))
+                                        .maxSessionsPreventsLogin(true))
                 .exceptionHandling(
                         exception ->
                                 exception.authenticationEntryPoint(
@@ -75,7 +77,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:8888"));
+        configuration.setAllowedOrigins(
+                List.of(
+                        "http://52.91.61.98:8888",
+                        "http://frontend:8888",
+                        "http://localhost:8888"));
         configuration.setAllowedMethods(
                 Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
